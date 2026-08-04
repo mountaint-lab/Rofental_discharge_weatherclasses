@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+
+# generated outputs - keep folder structure via .gitkeep, ignore contents
+data/raw/*
+!data/raw/.gitkeep
+!data/raw/pdfs_niedertalbach/
+data/raw/pdfs_niedertalbach/*
+!data/raw/pdfs_niedertalbach/.gitkeep
+!data/raw/pdfs_vernagtbach/
+data/raw/pdfs_vernagtbach/*
+!data/raw/pdfs_vernagtbach/.gitkeep
+
+data/interim/*
+!data/interim/.gitkeep
+
+data/processed/*
+!data/processed/.gitkeep
+
+figures/*
+!figures/.gitkeep

@@ -1,0 +1,37 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "01 - Extract Niedertalbach PDFs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/01_extract_niedertalbach_pdfs.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "02 - Extract Vernagtbach PDFs",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/02_extract_vernagtbach_pdfs.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "03 - Build master dataset",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/03_build_master_dataset.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "04 - Make figures",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/04_make_figures.py",
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal"
+        }
+    ]
+}
