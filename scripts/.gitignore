@@ -1,5 +1,6 @@
 __pycache__/
 *.pyc
+.venv/
 
 # generated outputs - keep folder structure via .gitkeep, ignore contents
 data/raw/*
