@@ -42,7 +42,11 @@ COLUMN_ORDER = ["time", "bmu", "smu", "Q_Vernagt", "Q_Niedertalbach", "W_Niedert
 
 
 def fix_bmu_smu(df: pd.DataFrame, classification_csv: str) -> pd.DataFrame:
-    cls = pd.read_csv(classification_csv, sep=None, engine="python", parse_dates=["time"]).set_index("time")
+    cls = pd.read_csv(classification_csv, sep=None, engine="python")
+    # parse_dates during read_csv is silently skipped when engine="python" + sep=None,
+    # and the source csv uses day-first dates (e.g. "01.05.1952") - parse explicitly.
+    cls["time"] = pd.to_datetime(cls["time"], dayfirst=True).dt.normalize()
+    cls = cls.set_index("time")
     df = df.copy()
     key = pd.to_datetime(df["time"]).dt.normalize()
     df["bmu"] = key.map(cls["bmu_proj"]).astype("Int64")
