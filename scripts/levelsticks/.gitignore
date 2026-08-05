@@ -1,0 +1,7 @@
+# Private field data: keep locally only.
+private_data/*
+!private_data/.gitkeep
+
+# Reproducible outputs: create locally, publish selected final figures separately if needed.
+figures/*
+!figures/.gitkeep
