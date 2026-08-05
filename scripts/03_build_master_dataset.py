@@ -31,10 +31,10 @@ import openpyxl
 from openpyxl.styles import Font, Alignment, PatternFill
 from openpyxl.utils import get_column_letter
 
-INPUT_XLSX = "./data/raw/ssim_q_weather_time_vs03.xlsx"                       # <-- adjust
+INPUT_XLSX = "./data/raw/ssim_q_weather_time_vs03_corrected.xlsx"                       # <-- adjust
 INPUT_SHEET = "clean_complete_cases"
-CLASSIFICATION_CSV = "./data/raw/w_1_5_n_3x3_m_ed_i_pca_clusters_time.csv"     # <-- adjust: final weighting version
-OUTPUT_XLSX = "./data/processed/ssim_q_weather_time_vs03_corrected.xlsx"
+CLASSIFICATION_CSV = "./data/raw/w_1.5_n_3x3_m_ed_i_pca_clusters_time.csv"     # <-- adjust: final weighting version
+OUTPUT_XLSX = "./data/processed/ssim_q_weather_time_vs03_output.xlsx"
 
 COLUMN_ORDER = ["time", "bmu", "smu", "Q_Vernagt", "Q_Niedertalbach", "W_Niedertalbach",
                 "RR", "Tmean", "rain_flag", "month", "Q_Vernagt_anom",

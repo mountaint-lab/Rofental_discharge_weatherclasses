@@ -27,7 +27,7 @@ from pathlib import Path
 INPUT_DIR = Path("./data/raw/pdfs_niedertalbach")        # <-- adjust: folder with the source PDFs
 LAYOUT_DIR = Path("./data/interim/_layout_niedertalbach")  # intermediate text files, auto-created
 OUTPUT_PKL = Path("./data/interim/niedertalbach_parsed.pkl")
-YEARS = list(range(2014, 2024))               # <-- adjust to the years you have
+YEARS = list(range(2014, 2023))               # <-- adjust to the years you have
 
 NUM_RE = re.compile(r"\d+(?:\.\d+)?\)?")
 DAY_RE = re.compile(r"^\s*(\d{1,2})\.\s")

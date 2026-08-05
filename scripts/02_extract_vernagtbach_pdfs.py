@@ -24,7 +24,7 @@ from pathlib import Path
 INPUT_DIR = Path("./data/raw/pdfs_vernagtbach")        # <-- adjust: folder with the source PDFs
 LAYOUT_DIR = Path("./data/interim/_layout_vernagtbach")  # intermediate text files, auto-created
 OUTPUT_PKL = Path("./data/interim/vernagtbach_parsed.pkl")
-YEARS = list(range(2014, 2020))                # <-- adjust to the years you have
+YEARS = list(range(2014, 2019))                # <-- adjust to the years you have
 
 MONTH_ORDER = ["Jan", "Feb", "Mrz", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
 NUM_RE = re.compile(r"\d+(?:\.\d+)?")

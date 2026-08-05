@@ -13,7 +13,7 @@ import matplotlib.dates as mdates
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
-MASTER_XLSX = "./data/processed/ssim_q_weather_time_vs03_corrected.xlsx"      # <-- adjust
+MASTER_XLSX = "./data/processed/ssim_q_weather_time_vs03_output.xlsx"      # <-- adjust
 MASTER_SHEET = "clean_complete_cases"
 SMARTSTAKE_CSV = "./data/raw/smartstake_daily_processed_2021_2024.csv"  # <-- adjust
 OUT_DIR = "./figures"
