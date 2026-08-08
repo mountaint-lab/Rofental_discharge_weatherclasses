@@ -10,6 +10,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from scipy import stats
+import pymannkendall as mk
 
 MASTER_XLSX = "./data/processed/ssim_q_weather_time_vs10.xlsx"  # <-- adjust
 MASTER_SHEET = "clean_complete_cases"
@@ -495,7 +496,14 @@ def fig_parde_coefficients(df):
 # --------------------------------------------------------------- Figure 14 --
 def fig_seasonal_magnitude_trend(df):
     """Has summer discharge magnitude (not just timing) changed? Seasonal
-    mean Q per year (May-Sep), scatter + linear trend, per catchment."""
+    mean Q per year (May-Sep), scatter + Mann-Kendall/Sen's-slope trend per
+    catchment. Mann-Kendall + Sen's slope (not OLS linear regression) is the
+    standard trend test in hydrology/climatology (WMO-recommended): a
+    rank-based, non-parametric test that doesn't assume normally distributed,
+    linear residuals and is far less sensitive to single outlier years than
+    OLS - the more defensible "is this monotonically increasing/decreasing"
+    statistic, the direct magnitude-trend analogue of the Pardé coefficient
+    used above for the seasonal-shape question."""
     d = df.copy()
     d["year"] = d["time"].dt.year
 
@@ -507,14 +515,15 @@ def fig_seasonal_magnitude_trend(df):
         seas = sub.groupby("year")[col].mean()
         seas = seas[counts >= 100]
         ax.scatter(seas.index, seas.values, s=14, alpha=0.6, color=c, linewidths=0)
-        slope, intercept, r, p, se = stats.linregress(seas.index, seas.values)
+        result = mk.original_test(seas.values)
         xs = np.array([seas.index.min(), seas.index.max()])
-        ax.plot(xs, slope * xs + intercept, color=c, linewidth=1.8,
-                label=f"Trend: {slope*10:+.2f} m³/s/Dek, p={p:.4f}")
+        ys = result.intercept + result.slope * (xs - seas.index.min())
+        ax.plot(xs, ys, color=c, linewidth=1.8,
+                label=f"Sen's slope: {result.slope*10:+.2f} m³/s/Dek\nMann-Kendall p={result.p:.4f}, Tau={result.Tau:+.2f} ({result.trend})")
         ax.set_title(title, fontsize=10)
         ax.set_xlabel("Jahr")
         ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
-        ax.legend(loc="upper left", frameon=False, fontsize=8)
+        ax.legend(loc="upper left", frameon=False, fontsize=7.5)
     axes[0].set_ylabel(r"Saisonmittel $Q$ [m$^3$ s$^{-1}$] (Mai–Sep)")
     fig.tight_layout()
     fig.savefig(f"{OUT_DIR}/fig14_seasonal_magnitude_trend.png", dpi=300, bbox_inches="tight")
