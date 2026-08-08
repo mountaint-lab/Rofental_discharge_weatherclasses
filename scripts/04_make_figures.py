@@ -38,6 +38,37 @@ def set_style():
     })
 
 
+MONTH_ABBR_DE = {1: "Jan", 2: "Feb", 3: "Mär", 4: "Apr", 5: "Mai", 6: "Jun",
+                  7: "Jul", 8: "Aug", 9: "Sep", 10: "Okt", 11: "Nov", 12: "Dez"}
+
+
+def _month_ticks(vmin, vmax):
+    """Day-of-year (non-leap reference year) of the 1st of each month that
+    falls within [vmin, vmax], plus its German abbreviation - used to label
+    day-of-year axes with month names instead of raw numbers."""
+    ticks, labels = [], []
+    for m in range(1, 13):
+        doy = pd.Timestamp(2001, m, 1).dayofyear
+        if vmin - 3 <= doy <= vmax + 3:
+            ticks.append(doy)
+            labels.append(MONTH_ABBR_DE[m])
+    return ticks, labels
+
+
+def set_month_xaxis(ax):
+    vmin, vmax = ax.get_xlim()
+    ticks, labels = _month_ticks(vmin, vmax)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels(labels)
+
+
+def set_month_yaxis(ax):
+    vmin, vmax = ax.get_ylim()
+    ticks, labels = _month_ticks(vmin, vmax)
+    ax.set_yticks(ticks)
+    ax.set_yticklabels(labels)
+
+
 def load_master():
     df = pd.read_excel(MASTER_XLSX, sheet_name=MASTER_SHEET)
     df["time"] = pd.to_datetime(df["time"])
@@ -88,7 +119,8 @@ def fig_peak_day_running_window(df, smoothing_window=9):
         ax.set_xlabel("Jahr")
         ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
         ax.legend(loc="upper left", frameon=False)
-    axes[0].set_ylabel("Tag des Jahres mit\nmaximalem Abfluss (9d-geglättet)")
+        set_month_yaxis(ax)
+    axes[0].set_ylabel("Monat mit\nmaximalem Abfluss (9d-geglättet)")
     fig.tight_layout()
     fig.savefig(f"{OUT_DIR}/fig10_peak_day_running_window.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -132,7 +164,9 @@ def fig_small_multiples(df, col, color, title, outfile):
         ax.set_title(lab, fontsize=8)
         ax.set_ylim(0, ymax)
     for ax in axes[-1, :]:
-        ax.set_xlabel("Tag d. J.", fontsize=7)
+        ax.set_xlabel("")
+        set_month_xaxis(ax)
+        ax.tick_params(axis="x", labelrotation=45)
     for ax in axes[:, 0]:
         ax.set_ylabel("Q [m3/s]", fontsize=7)
     fig.suptitle(title, fontsize=10, y=1.02)
@@ -179,7 +213,8 @@ def fig_seasonal_by_period_gradient(df):
             ax.plot(med.index, med.values, color=c, linewidth=1.2, label=pl)
         ax.set_title(title, fontsize=10)
         ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
-        ax.set_xlabel("Tag des Jahres")
+        ax.set_xlabel("")
+        set_month_xaxis(ax)
     axes[0].set_ylabel(r"Median $Q$ [m$^3$ s$^{-1}$]")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=5, frameon=False, fontsize=7.5)
@@ -226,7 +261,8 @@ def fig_hump_overlay(df):
             ax.fill_between(med_s.index, q25_s, q75_s, color=c, alpha=0.25, linewidth=0)
             ax.plot(med_s.index, med_s.values, color=c, linewidth=1.8, alpha=alpha, label=label)
         ax.set_title(title, fontsize=10)
-        ax.set_xlabel("Tag des Jahres")
+        ax.set_xlabel("")
+        set_month_xaxis(ax)
         ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
         ax.legend(loc="upper left", frameon=False)
     axes[0].set_ylabel("Median Q, normiert\nauf Perioden-Maximum")
@@ -284,7 +320,8 @@ def fig_flow_timing_cumulative(df):
         ax.set_xlabel("Jahr")
         ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
         ax.legend(loc="upper left", frameon=False, fontsize=6.5)
-    axes[0].set_ylabel("Tag des Jahres (kumulatives\nAbfluss-Datum)")
+        set_month_yaxis(ax)
+    axes[0].set_ylabel("Monat (kumulatives\nAbfluss-Datum)")
     fig.tight_layout()
     fig.savefig(f"{OUT_DIR}/fig11_flow_timing_cumulative.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -339,7 +376,8 @@ def fig_cumulative_fraction_curves(df):
             ax.plot(mean_days.values, fractions * 100, color=c, linewidth=1.6, marker="o", markersize=2.5, label=pl)
         ax.set_title(title, fontsize=10)
         ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
-        ax.set_xlabel("Tag des Jahres")
+        ax.set_xlabel("")
+        set_month_xaxis(ax)
     axes[0].set_ylabel("Kumulativer Saisonabfluss [%]")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=5, frameon=False, fontsize=7.5)
@@ -383,7 +421,8 @@ def fig_cumulative_fraction_curves_by_year(df):
             ax.plot(row[cols].values, fractions * 100, color=cmap(norm(y)), linewidth=0.8, alpha=0.6)
         ax.set_title(title, fontsize=10)
         ax.text(0.0, 1.08, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
-        ax.set_xlabel("Tag des Jahres")
+        ax.set_xlabel("")
+        set_month_xaxis(ax)
     axes[0].set_ylabel("Kumulativer Saisonabfluss [%]")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
