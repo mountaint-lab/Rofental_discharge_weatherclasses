@@ -432,6 +432,66 @@ def fig_cumulative_fraction_curves_by_year(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 13 --
+def fig_parde_coefficients(df):
+    """Pardé/regime coefficient k_i = mean(Q_month_i) / mean(Q_season), per
+    year, averaged per 5-year period. Both gauges only have data May-Sep (no
+    winter measurements - presumably frozen/ungauged), so this is a
+    season-only adaptation of the classical 12-month Pardé coefficient: it
+    shows the RELATIVE distribution of flow across the measured months, not
+    an absolute-magnitude trend. k=1 would mean an average month."""
+    d = df.copy()
+    d["month"] = d["time"].dt.month
+    d["year"] = d["time"].dt.year
+
+    def period_label(y):
+        for a, b in PERIOD_BINS:
+            if a <= y <= b:
+                return f"{a}-{b}"
+        return None
+
+    d["periode"] = d["year"].apply(period_label)
+    months = [5, 6, 7, 8, 9]
+    month_names = [MONTH_ABBR_DE[m] for m in months]
+
+    def parde_per_year(col):
+        rows = []
+        for y, sub in d.groupby("year"):
+            sub = sub.dropna(subset=[col])
+            month_means = sub.groupby("month")[col].mean()
+            if not all(m in month_means.index for m in months):
+                continue
+            season_mean = month_means.reindex(months).mean()
+            k = month_means.reindex(months) / season_mean
+            rows.append([y] + list(k.values))
+        return pd.DataFrame(rows, columns=["year"] + [str(m) for m in months]).set_index("year")
+
+    period_labels = [f"{a}-{b}" for a, b in PERIOD_BINS]
+    cmap = plt.get_cmap("coolwarm", len(period_labels))
+    grad_colors = [cmap(i) for i in range(len(period_labels))]
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), dpi=300, sharey=True)
+    for ax, (col, title, lab) in zip(axes, panels):
+        pk = parde_per_year(col)
+        pk["periode"] = [period_label(y) for y in pk.index]
+        for pl, c in zip(period_labels, grad_colors):
+            sub = pk[pk["periode"] == pl]
+            if len(sub) == 0:
+                continue
+            mean_k = sub[[str(m) for m in months]].mean()
+            ax.plot(month_names, mean_k.values, color=c, linewidth=1.6, marker="o", markersize=4, label=pl)
+        ax.axhline(1.0, color="0.6", linewidth=0.8, linestyle="--", zorder=0)
+        ax.set_title(title, fontsize=10)
+        ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
+    axes[0].set_ylabel(r"Pardé-Koeffizient $k_i$"+"\n(Monatsmittel / Saisonmittel)")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.12), ncol=5, frameon=False, fontsize=7.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.86])
+    fig.savefig(f"{OUT_DIR}/fig13_parde_coefficients.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -445,3 +505,4 @@ if __name__ == "__main__":
     fig_hump_overlay(df)
     fig_cumulative_fraction_curves(df)
     fig_cumulative_fraction_curves_by_year(df)
+    fig_parde_coefficients(df)
