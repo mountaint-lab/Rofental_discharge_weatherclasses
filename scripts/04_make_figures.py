@@ -68,7 +68,7 @@ def fig_peak_day_running_window(df, smoothing_window=9):
         fracs = np.linspace(0.62, 0.0, n)
         return [tuple(base * (1 - f) + white * f) for f in fracs]
 
-    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Niedertalbach", C_NIEDER_PEAK, "b")]
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
     fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
     for ax, (col, title, base_color, lab) in zip(axes, panels):
         pk = peak_day_per_year(col)
@@ -91,9 +91,65 @@ def fig_peak_day_running_window(df, smoothing_window=9):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 11 --
+def fig_flow_timing_cumulative(df):
+    """Robust alternative to the discrete peak-day: for each year, the day by
+    which 25%/50%/75% of that season's cumulative discharge has passed. Needs
+    no smoothing window and never has to pick a winner between near-tied
+    local maxima, unlike the discrete peak-day approach (fig10) - which we
+    found flips sign for Vernagtbach depending on smoothing-window choice
+    because its melt season often has two similarly-high humps competing for
+    "the" peak day."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["year"] = d["time"].dt.year
+
+    def flow_dates_per_year(col):
+        rows = []
+        for y, sub in d.groupby("year"):
+            s = sub.dropna(subset=[col]).sort_values("doy")
+            if len(s) < 100:
+                continue
+            cum = s[col].cumsum() / s[col].sum()
+            d25 = s["doy"].values[np.searchsorted(cum.values, 0.25)]
+            d50 = s["doy"].values[np.searchsorted(cum.values, 0.50)]
+            d75 = s["doy"].values[np.searchsorted(cum.values, 0.75)]
+            rows.append((y, d25, d50, d75))
+        return pd.DataFrame(rows, columns=["year", "d25", "d50", "d75"]).set_index("year")
+
+    def shades(base_hex, n):
+        base = np.array(mcolors.to_rgb(base_hex))
+        white = np.array([1, 1, 1])
+        fracs = np.linspace(0.55, 0.0, n)
+        return [tuple(base * (1 - f) + white * f) for f in fracs]
+
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300, sharey=True)
+    for ax, (col, title, base_color, lab) in zip(axes, panels):
+        fd = flow_dates_per_year(col)
+        cols3 = shades(base_color, 3)
+        for m, label, c in [("d25", "D25 (25% des Saisonabflusses)", cols3[0]),
+                             ("d50", "D50 (50% - Median-Datum)", cols3[1]),
+                             ("d75", "D75 (75% des Saisonabflusses)", cols3[2])]:
+            ax.scatter(fd.index, fd[m], s=10, alpha=0.5, color=c, linewidths=0)
+            slope, intercept, r, p, se = stats.linregress(fd.index, fd[m])
+            xs = np.array([fd.index.min(), fd.index.max()])
+            ax.plot(xs, slope * xs + intercept, color=c, linewidth=1.8,
+                    label=f"{label}: {slope*10:+.1f} d/Dek, p={p:.4f}")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Jahr")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=6.5)
+    axes[0].set_ylabel("Tag des Jahres (kumulatives\nAbfluss-Datum)")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig11_flow_timing_cumulative.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
     set_style()
     df = load_master()
     fig_peak_day_running_window(df)
+    fig_flow_timing_cumulative(df)
