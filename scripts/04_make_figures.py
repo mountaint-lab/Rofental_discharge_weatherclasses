@@ -161,18 +161,15 @@ def fig_seasonal_by_period_gradient(df):
     d["periode"] = d["year"].apply(period_label)
     period_labels = [f"{a}-{b}" for a, b in PERIOD_BINS]
 
-    def shades(base_hex, n):
-        base = np.array(mcolors.to_rgb(base_hex))
-        white = np.array([1, 1, 1])
-        fracs = np.linspace(0.0, 0.75, n)  # early=dark (base color), late=light
-        return [tuple(base * (1 - f) + white * f) for f in fracs]
+    # climate-stripes convention: early period = blue (cool/past), late = red (warm/present)
+    cmap = plt.get_cmap("coolwarm", len(period_labels))
+    grad_colors = [cmap(i) for i in range(len(period_labels))]
 
-    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"),
-              ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+    panels = [("Q_Vernagt", "Vernagtbach", "a"),
+              ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
     fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), dpi=300, sharex=True)
-    for ax, (col, title, base_color, lab) in zip(axes, panels):
-        colors = shades(base_color, len(period_labels))
-        for pl, c in zip(period_labels, colors):
+    for ax, (col, title, lab) in zip(axes, panels):
+        for pl, c in zip(period_labels, grad_colors):
             sub = d[d["periode"] == pl].dropna(subset=[col])
             if len(sub) == 0:
                 continue
