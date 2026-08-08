@@ -348,6 +348,51 @@ def fig_cumulative_fraction_curves(df):
     plt.close(fig)
 
 
+# -------------------------------------------------------------- Figure 12b --
+def fig_cumulative_fraction_curves_by_year(df):
+    """Same as fig12, but one thin line per individual year (n=50) instead of
+    period averages - no averaging step at all, each year's 100% mark is
+    that year's own seasonal discharge total. Colour = year on a continuous
+    blue-to-red scale (colourbar instead of a 50-entry legend)."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["year"] = d["time"].dt.year
+    fractions = np.arange(0.05, 1.0001, 0.05)
+
+    def fraction_days_per_year(col):
+        rows = []
+        for y, sub in d.groupby("year"):
+            s = sub.dropna(subset=[col]).sort_values("doy")
+            if len(s) < 100:
+                continue
+            cum = s[col].cumsum().values / s[col].sum()
+            days = [s["doy"].values[min(np.searchsorted(cum, f), len(cum) - 1)] for f in fractions]
+            rows.append([y] + days)
+        return pd.DataFrame(rows, columns=["year"] + [f"{int(round(f*100))}" for f in fractions]).set_index("year")
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    year_min, year_max = int(d["year"].min()), int(d["year"].max())
+    norm = mcolors.Normalize(vmin=year_min, vmax=year_max)
+    cmap = plt.get_cmap("coolwarm")
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), dpi=300, sharex=True, sharey=True)
+    for ax, (col, title, lab) in zip(axes, panels):
+        fd = fraction_days_per_year(col)
+        cols = [f"{int(round(f*100))}" for f in fractions]
+        for y, row in fd.iterrows():
+            ax.plot(fractions * 100, row[cols].values, color=cmap(norm(y)), linewidth=0.8, alpha=0.6)
+        ax.set_title(title, fontsize=10)
+        ax.text(0.0, 1.08, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
+        ax.set_xlabel("Kumulativer Saisonabfluss [%]")
+    axes[0].set_ylabel("Tag des Jahres")
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.05, pad=0.15, aspect=40)
+    cbar.set_label("Jahr")
+    fig.savefig(f"{OUT_DIR}/fig12b_cumulative_fraction_curves_by_year.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -360,3 +405,4 @@ if __name__ == "__main__":
     fig_seasonal_by_period_gradient(df)
     fig_hump_overlay(df)
     fig_cumulative_fraction_curves(df)
+    fig_cumulative_fraction_curves_by_year(df)
