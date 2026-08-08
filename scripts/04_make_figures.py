@@ -629,7 +629,7 @@ def fig_monthly_circular_scatter(df):
     norm = mcolors.Normalize(vmin=year_min, vmax=year_max)
     cmap = plt.get_cmap("coolwarm")
 
-    fig, axes = plt.subplots(1, 2, figsize=(11, 6.2), dpi=300, subplot_kw={"projection": "polar"})
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.0), dpi=300, subplot_kw={"projection": "polar"})
     for ax, (col, title, lab) in zip(axes, panels):
         sub = d.dropna(subset=[col])
         month_means = sub.groupby(["year", "month"])[col].mean().reset_index()
@@ -654,12 +654,18 @@ def fig_monthly_circular_scatter(df):
         ax.text(-0.05, 1.15, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
         ax.set_rlabel_position(0)
         ax.tick_params(axis="y", labelsize=6.5)
+        # polar axes always reserve a full-circle bounding box even when
+        # cropped to a half-circle via thetamin/thetamax - shift each axes
+        # up so the (invisible) top half moves off-canvas instead of leaving
+        # a blank gap between the title and the visible plot.
+        pos = ax.get_position()
+        ax.set_position([pos.x0, pos.y0 + pos.height * 0.40, pos.width, pos.height])
 
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
-    cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.05, pad=0.12, aspect=40, shrink=0.6)
+    cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.05, pad=0.02, aspect=40, shrink=0.6)
     cbar.set_label("Jahr")
-    fig.suptitle(r"Monatsmittel $Q$ [m$^3$ s$^{-1}$] nach Kalendermonat (Radius), je Jahr (Farbe)", fontsize=9, y=1.08)
+    fig.suptitle(r"Monatsmittel $Q$ [m$^3$ s$^{-1}$] nach Kalendermonat (Radius), je Jahr (Farbe)", fontsize=9, y=1.35)
     fig.savefig(f"{OUT_DIR}/fig15_monthly_circular_scatter.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
