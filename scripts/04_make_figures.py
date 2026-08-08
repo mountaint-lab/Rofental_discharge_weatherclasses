@@ -611,6 +611,54 @@ def fig_monthly_magnitude_by_period(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 15 --
+def fig_monthly_circular_scatter(df):
+    """Polar scatter: angle = calendar month (Jan at top, clockwise, all 12
+    months shown for context even though data only exists for May-Sep),
+    radius = that year's mean Q for the month, colour = year (blue 1974 to
+    red 2023). Within each month's angular slice, years are fanned out by a
+    small offset (not jittered randomly) so the time ordering is still
+    readable instead of all 50 points stacking on one spoke."""
+    d = df.copy()
+    d["month"] = d["time"].dt.month
+    d["year"] = d["time"].dt.year
+    months = [5, 6, 7, 8, 9]
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    year_min, year_max = int(d["year"].min()), int(d["year"].max())
+    norm = mcolors.Normalize(vmin=year_min, vmax=year_max)
+    cmap = plt.get_cmap("coolwarm")
+    slice_width = (2 * np.pi / 12) * 0.7  # fan width within each month's sector, in radians
+
+    fig, axes = plt.subplots(1, 2, figsize=(11, 5.6), dpi=300, subplot_kw={"projection": "polar"})
+    for ax, (col, title, lab) in zip(axes, panels):
+        sub = d.dropna(subset=[col])
+        month_means = sub.groupby(["year", "month"])[col].mean().reset_index()
+        for m in months:
+            msub = month_means[month_means["month"] == m].sort_values("year")
+            base_theta = 2 * np.pi * (m - 1) / 12
+            offsets = np.linspace(-0.5, 0.5, len(msub)) * slice_width
+            thetas = base_theta + offsets
+            colors = [cmap(norm(y)) for y in msub["year"]]
+            ax.scatter(thetas, msub[col].values, c=colors, s=14, alpha=0.85, linewidths=0)
+        ax.set_theta_zero_location("N")
+        ax.set_theta_direction(-1)
+        ax.set_thetagrids([2 * np.pi * (m - 1) / 12 * 180 / np.pi for m in range(1, 13)],
+                           labels=[MONTH_ABBR_DE[m] for m in range(1, 13)], fontsize=8)
+        ax.set_title(title, fontsize=10, pad=28)
+        ax.text(-0.05, 1.15, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.set_rlabel_position(200)
+        ax.tick_params(axis="y", labelsize=6.5)
+
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.05, pad=0.12, aspect=40, shrink=0.6)
+    cbar.set_label("Jahr")
+    fig.suptitle(r"Monatsmittel $Q$ [m$^3$ s$^{-1}$] nach Kalendermonat (Radius), je Jahr (Farbe)", fontsize=9, y=1.08)
+    fig.savefig(f"{OUT_DIR}/fig15_monthly_circular_scatter.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -628,3 +676,4 @@ if __name__ == "__main__":
     fig_seasonal_magnitude_trend(df)
     fig_seasonal_magnitude_bars(df)
     fig_monthly_magnitude_by_period(df)
+    fig_monthly_circular_scatter(df)
