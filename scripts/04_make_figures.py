@@ -492,6 +492,78 @@ def fig_parde_coefficients(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 14 --
+def fig_seasonal_magnitude_trend(df):
+    """Has summer discharge magnitude (not just timing) changed? Seasonal
+    mean Q per year (May-Sep), scatter + linear trend, per catchment."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
+    for ax, (col, title, c, lab) in zip(axes, panels):
+        sub = d.dropna(subset=[col])
+        counts = sub.groupby("year")[col].count()
+        seas = sub.groupby("year")[col].mean()
+        seas = seas[counts >= 100]
+        ax.scatter(seas.index, seas.values, s=14, alpha=0.6, color=c, linewidths=0)
+        slope, intercept, r, p, se = stats.linregress(seas.index, seas.values)
+        xs = np.array([seas.index.min(), seas.index.max()])
+        ax.plot(xs, slope * xs + intercept, color=c, linewidth=1.8,
+                label=f"Trend: {slope*10:+.2f} m³/s/Dek, p={p:.4f}")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Jahr")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=8)
+    axes[0].set_ylabel(r"Saisonmittel $Q$ [m$^3$ s$^{-1}$] (Mai–Sep)")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig14_seasonal_magnitude_trend.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# -------------------------------------------------------------- Figure 14b --
+def fig_monthly_magnitude_by_period(df):
+    """Un-normalized companion to fig13: absolute monthly mean Q [m3/s] per
+    5-year period, same blue-to-red gradient - shows the magnitude behind
+    the Pardé-coefficient shape changes (is a month's share falling because
+    IT dropped, or because OTHER months grew faster?)."""
+    d = df.copy()
+    d["month"] = d["time"].dt.month
+    d["year"] = d["time"].dt.year
+
+    def period_label(y):
+        for a, b in PERIOD_BINS:
+            if a <= y <= b:
+                return f"{a}-{b}"
+        return None
+
+    d["periode"] = d["year"].apply(period_label)
+    months = [5, 6, 7, 8, 9]
+    month_names = [MONTH_ABBR_DE[m] for m in months]
+    period_labels = [f"{a}-{b}" for a, b in PERIOD_BINS]
+    cmap = plt.get_cmap("coolwarm", len(period_labels))
+    grad_colors = [cmap(i) for i in range(len(period_labels))]
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), dpi=300)
+    for ax, (col, title, lab) in zip(axes, panels):
+        sub = d.dropna(subset=[col])
+        for pl, c in zip(period_labels, grad_colors):
+            psub = sub[sub["periode"] == pl]
+            if len(psub) == 0:
+                continue
+            month_means = psub.groupby("month")[col].mean().reindex(months)
+            ax.plot(month_names, month_means.values, color=c, linewidth=1.6, marker="o", markersize=4, label=pl)
+        ax.set_title(title, fontsize=10)
+        ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
+    axes[0].set_ylabel(r"Monatsmittel $Q$ [m$^3$ s$^{-1}$]")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.12), ncol=5, frameon=False, fontsize=7.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.86])
+    fig.savefig(f"{OUT_DIR}/fig14b_monthly_magnitude_by_period.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -506,3 +578,5 @@ if __name__ == "__main__":
     fig_cumulative_fraction_curves(df)
     fig_cumulative_fraction_curves_by_year(df)
     fig_parde_coefficients(df)
+    fig_seasonal_magnitude_trend(df)
+    fig_monthly_magnitude_by_period(df)
