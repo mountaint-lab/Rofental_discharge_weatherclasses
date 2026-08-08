@@ -290,6 +290,64 @@ def fig_flow_timing_cumulative(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 12 --
+def fig_cumulative_fraction_curves(df):
+    """Generalizes fig11's D25/D50/D75 to the full quantile curve: for each
+    year, the day-of-year at which each 5%-step of that season's cumulative
+    discharge was reached (x-axis = fraction, y-axis = day). Averaged per
+    5-year period (raw per-year curves are too crowded at 50 lines) and
+    colour-graded blue (early) to red (late), same convention as fig7."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["year"] = d["time"].dt.year
+
+    def period_label(y):
+        for a, b in PERIOD_BINS:
+            if a <= y <= b:
+                return f"{a}-{b}"
+        return None
+
+    d["periode"] = d["year"].apply(period_label)
+    fractions = np.arange(0.05, 1.0001, 0.05)
+
+    def fraction_days_per_year(col):
+        rows = []
+        for y, sub in d.groupby("year"):
+            s = sub.dropna(subset=[col]).sort_values("doy")
+            if len(s) < 100:
+                continue
+            cum = s[col].cumsum().values / s[col].sum()
+            days = [s["doy"].values[min(np.searchsorted(cum, f), len(cum) - 1)] for f in fractions]
+            rows.append([y] + days)
+        return pd.DataFrame(rows, columns=["year"] + [f"{int(round(f*100))}" for f in fractions]).set_index("year")
+
+    period_labels = [f"{a}-{b}" for a, b in PERIOD_BINS]
+    cmap = plt.get_cmap("coolwarm", len(period_labels))
+    grad_colors = [cmap(i) for i in range(len(period_labels))]
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"),
+              ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(11, 4.6), dpi=300, sharex=True, sharey=True)
+    for ax, (col, title, lab) in zip(axes, panels):
+        fd = fraction_days_per_year(col)
+        fd["periode"] = [period_label(y) for y in fd.index]
+        for pl, c in zip(period_labels, grad_colors):
+            sub = fd[fd["periode"] == pl]
+            if len(sub) == 0:
+                continue
+            mean_days = sub[[f"{int(round(f*100))}" for f in fractions]].mean()
+            ax.plot(fractions * 100, mean_days.values, color=c, linewidth=1.6, marker="o", markersize=2.5, label=pl)
+        ax.set_title(title, fontsize=10)
+        ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
+        ax.set_xlabel("Kumulativer Saisonabfluss [%]")
+    axes[0].set_ylabel("Tag des Jahres")
+    handles, labels = axes[0].get_legend_handles_labels()
+    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=5, frameon=False, fontsize=7.5)
+    fig.tight_layout(rect=[0, 0, 1, 0.88])
+    fig.savefig(f"{OUT_DIR}/fig12_cumulative_fraction_curves.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -301,3 +359,4 @@ if __name__ == "__main__":
     fig_small_multiples(df, "Q_Niedertalbach", C_NIEDER_PEAK, "Rofenache – Pegel Vent - Median und IQR je Periode", "fig9_smallmult_rofenache.png")
     fig_seasonal_by_period_gradient(df)
     fig_hump_overlay(df)
+    fig_cumulative_fraction_curves(df)
