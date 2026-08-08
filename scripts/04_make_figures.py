@@ -530,6 +530,44 @@ def fig_seasonal_magnitude_trend(df):
     plt.close(fig)
 
 
+# -------------------------------------------------------------- Figure 14c --
+def fig_seasonal_magnitude_bars(df):
+    """Same seasonal-mean-Q-per-year data as fig14, but as bars with error
+    bars showing the 25th-75th percentile spread of DAILY Q within that
+    year's season - fig14's scatter+trend-line only shows the one mean point
+    per year, not how much the daily values varied within a season. Bars
+    coloured continuously blue (1974) to red (2023), same convention as the
+    other per-year figures."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(2, 1, figsize=(11, 7.4), dpi=300, sharex=True)
+    for ax, (col, title, lab) in zip(axes, panels):
+        sub = d.dropna(subset=[col])
+        counts = sub.groupby("year")[col].count()
+        mean_q = sub.groupby("year")[col].mean()
+        q25 = sub.groupby("year")[col].quantile(0.25)
+        q75 = sub.groupby("year")[col].quantile(0.75)
+        valid = counts[counts >= 100].index
+        mean_q, q25, q75 = mean_q.loc[valid], q25.loc[valid], q75.loc[valid]
+
+        norm = mcolors.Normalize(vmin=valid.min(), vmax=valid.max())
+        cmap = plt.get_cmap("coolwarm")
+        colors = [cmap(norm(y)) for y in valid]
+        yerr = np.array([mean_q.values - q25.values, q75.values - mean_q.values])
+        yerr = np.clip(yerr, 0, None)
+        ax.bar(valid, mean_q.values, color=colors, width=0.8)
+        ax.errorbar(valid, mean_q.values, yerr=yerr, fmt="none", ecolor="0.25", elinewidth=0.8, capsize=2)
+        ax.set_title(title, fontsize=10)
+        ax.text(0.0, 1.08, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
+        ax.set_ylabel(r"$Q$ [m$^3$ s$^{-1}$]" + "\n(Saisonmittel, Fehlerbalken = 25.-75. Perzentil Tageswerte)", fontsize=8)
+    axes[-1].set_xlabel("Jahr")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig14c_seasonal_magnitude_bars.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 # -------------------------------------------------------------- Figure 14b --
 def fig_monthly_magnitude_by_period(df):
     """Un-normalized companion to fig13: absolute monthly mean Q [m3/s] per
@@ -588,4 +626,5 @@ if __name__ == "__main__":
     fig_cumulative_fraction_curves_by_year(df)
     fig_parde_coefficients(df)
     fig_seasonal_magnitude_trend(df)
+    fig_seasonal_magnitude_bars(df)
     fig_monthly_magnitude_by_period(df)
