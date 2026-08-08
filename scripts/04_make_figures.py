@@ -23,6 +23,9 @@ C_VERNAGT = "#922b21"
 C_VERNAGT_PEAK = "#4a3aa7"
 C_NIEDER_PEAK = "#008300"
 
+PERIOD_BINS = [(1974, 1979), (1980, 1984), (1985, 1989), (1990, 1994), (1995, 1999),
+               (2000, 2004), (2005, 2009), (2010, 2014), (2015, 2019), (2020, 2023)]
+
 
 def set_style():
     plt.rcParams.update({
@@ -91,6 +94,83 @@ def fig_peak_day_running_window(df, smoothing_window=9):
     plt.close(fig)
 
 
+# ---------------------------------------------------------------- Figure 9 --
+def fig_small_multiples(df, col, color, title, outfile):
+    """One panel per 5-year period, median + IQR, shared y-axis for fair
+    comparison. This shows the actual shape of the seasonal hydrograph
+    instead of a single derived peak-day number - if there are two competing
+    humps, they are directly visible here."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["year"] = d["time"].dt.year
+
+    def period_label(y):
+        for a, b in PERIOD_BINS:
+            if a <= y <= b:
+                return f"{a}-{b}"
+        return None
+
+    d["periode"] = d["year"].apply(period_label)
+    ymax = d[col].quantile(0.998)
+
+    fig, axes = plt.subplots(2, 5, figsize=(11, 4.3), dpi=300, sharex=True, sharey=True)
+    for ax, (a, b) in zip(axes.flat, PERIOD_BINS):
+        lab = f"{a}-{b}"
+        sub = d[d["periode"] == lab]
+        if sub[col].notna().sum() < 20:
+            ax.text(0.5, 0.5, "keine Daten", ha="center", va="center", transform=ax.transAxes,
+                    fontsize=7, color="0.6")
+            ax.set_title(lab, fontsize=8)
+            continue
+        g = sub.groupby("doy")[col]
+        med, q25, q75 = g.median(), g.quantile(0.25), g.quantile(0.75)
+        ax.fill_between(med.index, q25, q75, color=color, alpha=0.25, linewidth=0)
+        ax.plot(med.index, med.values, color=color, linewidth=1)
+        ax.set_title(lab, fontsize=8)
+        ax.set_ylim(0, ymax)
+    for ax in axes[-1, :]:
+        ax.set_xlabel("Tag d. J.", fontsize=7)
+    for ax in axes[:, 0]:
+        ax.set_ylabel("Q [m3/s]", fontsize=7)
+    fig.suptitle(title, fontsize=10, y=1.02)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/{outfile}", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# ---------------------------------------------------------- Figure 9b (new) --
+def fig_hump_overlay(df):
+    """Direct overlay of the early-period vs. late-period median seasonal
+    curve for both catchments, normalized to each period's own peak so the
+    SHAPE (single peak vs. two humps, and which hump dominates) is
+    comparable across periods regardless of absolute discharge magnitude."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["year"] = d["time"].dt.year
+
+    early, late = (1974, 1988), (2009, 2023)
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"),
+              ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300, sharey=True)
+    for ax, (col, title, base_color, lab) in zip(axes, panels):
+        for (y0, y1), ls, alpha, label in [(early, "--", 0.9, f"{early[0]}-{early[1]}"),
+                                            (late, "-", 1.0, f"{late[0]}-{late[1]}")]:
+            sub = d[(d["year"] >= y0) & (d["year"] <= y1)].dropna(subset=[col])
+            med = sub.groupby("doy")[col].median()
+            med_norm = med / med.max()
+            ax.plot(med.index, med_norm.values, color=base_color, linewidth=1.6, linestyle=ls,
+                    alpha=alpha, label=label)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Tag des Jahres")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False)
+    axes[0].set_ylabel("Median Q, normiert\nauf Perioden-Maximum")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig9b_hump_overlay.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 # --------------------------------------------------------------- Figure 11 --
 def fig_flow_timing_cumulative(df):
     """Robust alternative to the discrete peak-day: for each year, the day by
@@ -153,3 +233,6 @@ if __name__ == "__main__":
     df = load_master()
     fig_peak_day_running_window(df)
     fig_flow_timing_cumulative(df)
+    fig_small_multiples(df, "Q_Vernagt", C_VERNAGT_PEAK, "Vernagtbach - Median und IQR je Periode", "fig9_smallmult_vernagt.png")
+    fig_small_multiples(df, "Q_Niedertalbach", C_NIEDER_PEAK, "Rofenache – Pegel Vent - Median und IQR je Periode", "fig9_smallmult_rofenache.png")
+    fig_hump_overlay(df)
