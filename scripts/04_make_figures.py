@@ -336,11 +336,11 @@ def fig_cumulative_fraction_curves(df):
             if len(sub) == 0:
                 continue
             mean_days = sub[[f"{int(round(f*100))}" for f in fractions]].mean()
-            ax.plot(fractions * 100, mean_days.values, color=c, linewidth=1.6, marker="o", markersize=2.5, label=pl)
+            ax.plot(mean_days.values, fractions * 100, color=c, linewidth=1.6, marker="o", markersize=2.5, label=pl)
         ax.set_title(title, fontsize=10)
         ax.text(0.0, 1.1, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
-        ax.set_xlabel("Kumulativer Saisonabfluss [%]")
-    axes[0].set_ylabel("Tag des Jahres")
+        ax.set_xlabel("Tag des Jahres")
+    axes[0].set_ylabel("Kumulativer Saisonabfluss [%]")
     handles, labels = axes[0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=5, frameon=False, fontsize=7.5)
     fig.tight_layout(rect=[0, 0, 1, 0.88])
@@ -380,11 +380,11 @@ def fig_cumulative_fraction_curves_by_year(df):
         fd = fraction_days_per_year(col)
         cols = [f"{int(round(f*100))}" for f in fractions]
         for y, row in fd.iterrows():
-            ax.plot(fractions * 100, row[cols].values, color=cmap(norm(y)), linewidth=0.8, alpha=0.6)
+            ax.plot(row[cols].values, fractions * 100, color=cmap(norm(y)), linewidth=0.8, alpha=0.6)
         ax.set_title(title, fontsize=10)
         ax.text(0.0, 1.08, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top", clip_on=False)
-        ax.set_xlabel("Kumulativer Saisonabfluss [%]")
-    axes[0].set_ylabel("Tag des Jahres")
+        ax.set_xlabel("Tag des Jahres")
+    axes[0].set_ylabel("Kumulativer Saisonabfluss [%]")
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=axes, orientation="horizontal", fraction=0.05, pad=0.15, aspect=40)
