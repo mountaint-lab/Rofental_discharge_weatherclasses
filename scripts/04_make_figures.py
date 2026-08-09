@@ -1089,6 +1089,67 @@ def fig_rain_snow_precip_sensitivity(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 26 --
+def fig_annual_max_magnitude_trend(df):
+    """Extreme-value magnitude (not timing, unlike fig10): the size of each
+    year's single highest daily discharge - has the peak itself gotten
+    bigger, independent of whether its day-of-year has shifted?"""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
+    for ax, (col, title, c, lab) in zip(axes, panels):
+        annmax = d.dropna(subset=[col]).groupby("year")[col].max()
+        ax.scatter(annmax.index, annmax.values, s=14, alpha=0.6, color=c, linewidths=0)
+        result = mk.original_test(annmax.values)
+        xs = np.array([annmax.index.min(), annmax.index.max()])
+        ys = result.intercept + result.slope * (xs - annmax.index.min())
+        ax.plot(xs, ys, color=c, linewidth=1.8,
+                label=f"Sen's slope: {result.slope*10:+.2f} m³/s/Dek\nMann-Kendall p={result.p:.4f} ({result.trend})")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Jahr")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=8)
+    axes[0].set_ylabel(r"Jahresmaximum $Q$ [m$^3$ s$^{-1}$] (Tageswert)")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig26_annual_max_magnitude_trend.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 27 --
+def fig_high_flow_day_frequency(df):
+    """Extreme-value frequency: how many days per year exceed the 90th
+    percentile of an early reference period (1974-1988)? Complements fig26 -
+    a stable annual max can still hide more/fewer days spent in
+    high-flow conditions overall, and vice versa."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    years = np.arange(d["year"].min(), d["year"].max() + 1)
+
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
+    for ax, (col, title, c, lab) in zip(axes, panels):
+        sub = d.dropna(subset=[col])
+        ref = sub[sub["year"] <= 1988]
+        thresh = ref[col].quantile(0.90)
+        exceed = sub[sub[col] > thresh].groupby("year").size().reindex(years, fill_value=0)
+        ax.bar(exceed.index, exceed.values, color=c, width=0.7)
+        result = mk.original_test(exceed.values)
+        xs = np.array([years.min(), years.max()])
+        ys = result.intercept + result.slope * (xs - years.min())
+        ax.plot(xs, ys, color="#1a1a1a", linewidth=1.8,
+                label=f"Sen's slope: {result.slope*10:+.2f} Tage/Dek\nMann-Kendall p={result.p:.4f} ({result.trend})")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Jahr")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=8)
+    axes[0].set_ylabel("Tage/Jahr über dem\n90. Perzentil (Referenz 1974–1988)")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig27_high_flow_day_frequency.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1117,3 +1178,5 @@ if __name__ == "__main__":
     fig_semi_elasticity_comparison(df)
     fig_degree_day_approach(df)
     fig_rain_snow_precip_sensitivity(df)
+    fig_annual_max_magnitude_trend(df)
+    fig_high_flow_day_frequency(df)
