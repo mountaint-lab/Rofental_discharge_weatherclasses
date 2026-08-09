@@ -1092,26 +1092,38 @@ def fig_rain_snow_precip_sensitivity(df):
 # --------------------------------------------------------------- Figure 26 --
 def fig_annual_max_magnitude_trend(df):
     """Extreme-value magnitude (not timing, unlike fig10): the size of each
-    year's single highest daily discharge - has the peak itself gotten
-    bigger, independent of whether its day-of-year has shifted?"""
+    year's single highest daily discharge WITHIN EACH MONTH - bars instead
+    of a single scattered dot per year, faceted May-Sep like fig20/21/24, so
+    you can see which month actually drives the change instead of only the
+    one overall annual max."""
     d = df.copy()
     d["year"] = d["time"].dt.year
+    d["month"] = d["time"].dt.month
+    years = np.arange(d["year"].min(), d["year"].max() + 1)
+    months = [5, 6, 7, 8, 9]
 
-    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK, "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
-    fig, axes = plt.subplots(1, 2, figsize=(10, 4.2), dpi=300)
-    for ax, (col, title, c, lab) in zip(axes, panels):
-        annmax = d.dropna(subset=[col]).groupby("year")[col].max()
-        ax.scatter(annmax.index, annmax.values, s=14, alpha=0.6, color=c, linewidths=0)
-        result = mk.original_test(annmax.values)
-        xs = np.array([annmax.index.min(), annmax.index.max()])
-        ys = result.intercept + result.slope * (xs - annmax.index.min())
-        ax.plot(xs, ys, color=c, linewidth=1.8,
-                label=f"Sen's slope: {result.slope*10:+.2f} m³/s/Dek\nMann-Kendall p={result.p:.4f} ({result.trend})")
-        ax.set_title(title, fontsize=10)
-        ax.set_xlabel("Jahr")
-        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
-        ax.legend(loc="upper left", frameon=False, fontsize=8)
-    axes[0].set_ylabel(r"Jahresmaximum $Q$ [m$^3$ s$^{-1}$] (Tageswert)")
+    rows = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+
+    fig, axes = plt.subplots(2, 5, figsize=(15, 6), dpi=300, sharex="col")
+    for row_i, (col, rowtitle, c) in enumerate(rows):
+        sub = d.dropna(subset=[col])
+        for col_i, m in enumerate(months):
+            ax = axes[row_i, col_i]
+            msub = sub[sub["month"] == m]
+            monmax = msub.groupby("year")[col].max().reindex(years)
+            ax.bar(years, monmax.values, color=c, width=0.8)
+            valid = monmax.dropna()
+            result = mk.original_test(valid.values)
+            xs = np.array([valid.index.min(), valid.index.max()])
+            ys = result.intercept + result.slope * (xs - valid.index.min())
+            ax.plot(xs, ys, color="#1a1a1a", linewidth=1.4, linestyle="--")
+            ax.text(0.04, 0.95, f"{result.slope*10:+.2f} m³/s/Dek\np={result.p:.3f}",
+                    transform=ax.transAxes, fontsize=6.5, va="top")
+            if row_i == 0:
+                ax.set_title(MONTH_ABBR_DE[m], fontsize=10)
+            if col_i == 0:
+                ax.set_ylabel(f"{rowtitle}\nMonatsmaximum [m³/s]", fontsize=8)
+    fig.suptitle("Monatliches Maximum des Tagesabflusses, je Jahr", fontsize=10, y=1.01)
     fig.tight_layout()
     fig.savefig(f"{OUT_DIR}/fig26_annual_max_magnitude_trend.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
@@ -1150,6 +1162,46 @@ def fig_high_flow_day_frequency(df):
     plt.close(fig)
 
 
+# -------------------------------------------------------------- Figure 27b --
+def fig_high_flow_day_frequency_monthly(df):
+    """Same as fig27 (days/year over the 90th-percentile-of-1974-1988
+    threshold), but faceted by month instead of summed across the whole
+    season - shows whether high-flow days are becoming more/less common in
+    a specific part of the summer rather than just overall."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["month"] = d["time"].dt.month
+    years = np.arange(d["year"].min(), d["year"].max() + 1)
+    months = [5, 6, 7, 8, 9]
+
+    rows = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+
+    fig, axes = plt.subplots(2, 5, figsize=(15, 6), dpi=300, sharex="col")
+    for row_i, (col, rowtitle, c) in enumerate(rows):
+        sub = d.dropna(subset=[col])
+        ref = sub[sub["year"] <= 1988]
+        thresh = ref[col].quantile(0.90)
+        for col_i, m in enumerate(months):
+            ax = axes[row_i, col_i]
+            msub = sub[sub["month"] == m]
+            exceed = msub[msub[col] > thresh].groupby("year").size().reindex(years, fill_value=0)
+            ax.bar(years, exceed.values, color=c, width=0.8)
+            result = mk.original_test(exceed.values)
+            xs = np.array([years.min(), years.max()])
+            ys = result.intercept + result.slope * (xs - years.min())
+            ax.plot(xs, ys, color="#1a1a1a", linewidth=1.4, linestyle="--")
+            ax.text(0.04, 0.95, f"{result.slope*10:+.2f} Tage/Dek\np={result.p:.3f}",
+                    transform=ax.transAxes, fontsize=6.5, va="top")
+            if row_i == 0:
+                ax.set_title(MONTH_ABBR_DE[m], fontsize=10)
+            if col_i == 0:
+                ax.set_ylabel(f"{rowtitle}\nTage über Schwelle", fontsize=8)
+    fig.suptitle("Tage über dem 90. Perzentil (Referenz 1974–1988), je Monat und Jahr", fontsize=10, y=1.01)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig27b_high_flow_day_frequency_monthly.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1180,3 +1232,4 @@ if __name__ == "__main__":
     fig_rain_snow_precip_sensitivity(df)
     fig_annual_max_magnitude_trend(df)
     fig_high_flow_day_frequency(df)
+    fig_high_flow_day_frequency_monthly(df)
