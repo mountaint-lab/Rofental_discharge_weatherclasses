@@ -44,6 +44,15 @@ MONTH_ABBR_DE = {1: "Jan", 2: "Feb", 3: "Mär", 4: "Apr", 5: "Mai", 6: "Jun",
                   7: "Jul", 8: "Aug", 9: "Sep", 10: "Okt", 11: "Nov", 12: "Dez"}
 
 
+def doy_anomaly(dd, col, window=9):
+    """Daily anomaly relative to the (9d-smoothed) day-of-year climatology -
+    isolates day-to-day weather-driven fluctuations from the seasonal cycle
+    that Q and T/RR all naturally share."""
+    clim = dd.groupby("doy")[col].mean()
+    clim_smooth = clim.rolling(window, center=True, min_periods=3).mean()
+    return dd[col] - dd["doy"].map(clim_smooth)
+
+
 def _month_ticks(vmin, vmax):
     """Day-of-year (non-leap reference year) of the 1st of each month that
     falls within [vmin, vmax], plus its German abbreviation - used to label
@@ -727,11 +736,6 @@ def fig_discharge_temp_sensitivity(df):
     d["month"] = d["time"].dt.month
     seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
 
-    def doy_anomaly(dd, col, window=9):
-        clim = dd.groupby("doy")[col].mean()
-        clim_smooth = clim.rolling(window, center=True, min_periods=3).mean()
-        return dd[col] - dd["doy"].map(clim_smooth)
-
     halves = [(1974, 1998, "1974-1998", "#4a3aa7"), (1999, 2023, "1999-2023", "#c0392b")]
     panels = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", "a"),
               ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", "b")]
@@ -862,6 +866,72 @@ def fig_data_availability(df):
     plt.close(fig)
 
 
+def _monthly_sensitivity_grid(df, driver_cols, driver_label, driver_unit, outfile):
+    """Shared builder for fig20 (temperature) and fig21 (precipitation):
+    2 rows (Vernagtbach, Rofenache) x 5 columns (May-Sep), each panel a
+    scatter of the driver's daily anomaly vs. Q's daily anomaly (both
+    deseasonalized against their own 9d-smoothed day-of-year climatology),
+    coloured continuously by year, with a per-panel regression line and
+    slope/r/p annotated - the monthly-faceted, year-coloured layout mirrors
+    the team's earlier exploratory version of this plot."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    months = [5, 6, 7, 8, 9]
+    seas = d[d["month"].isin(months)].copy()
+
+    rows = [("Q_Vernagt", driver_cols[0], "Vernagtbach"),
+            ("Q_Niedertalbach", driver_cols[1], "Rofenache – Pegel Vent")]
+
+    year_min, year_max = int(d["year"].min()), int(d["year"].max())
+    norm = mcolors.Normalize(vmin=year_min, vmax=year_max)
+    cmap = plt.get_cmap("coolwarm")
+
+    fig, axes = plt.subplots(2, 5, figsize=(15, 6), dpi=300, sharex="col")
+    for row_i, (qcol, dcol, rowtitle) in enumerate(rows):
+        sub = seas.dropna(subset=[qcol, dcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["D_a"] = doy_anomaly(sub, dcol)
+        sub = sub.dropna(subset=["Q_a", "D_a"])
+        for col_i, m in enumerate(months):
+            ax = axes[row_i, col_i]
+            msub = sub[sub["month"] == m]
+            ax.scatter(msub["D_a"], msub["Q_a"], c=msub["year"], cmap=cmap, norm=norm, s=6, alpha=0.5, linewidths=0)
+            slope, intercept, r, p, se = stats.linregress(msub["D_a"], msub["Q_a"])
+            xs = np.array([msub["D_a"].min(), msub["D_a"].max()])
+            ax.plot(xs, slope * xs + intercept, color="0.15", linewidth=1.4, linestyle="--")
+            ax.axhline(0, color="0.75", linewidth=0.5)
+            ax.axvline(0, color="0.75", linewidth=0.5)
+            ax.text(0.03, 0.96, f"n={len(msub)}\n{slope:+.2f} m³/s/{driver_unit}\np={p:.1e}",
+                    transform=ax.transAxes, fontsize=6.5, va="top")
+            if row_i == 0:
+                ax.set_title(MONTH_ABBR_DE[m], fontsize=10)
+            if col_i == 0:
+                ax.set_ylabel(f"{rowtitle}\nQ-Anomalie [m³/s]", fontsize=8)
+            if row_i == 1:
+                ax.set_xlabel(f"{driver_label}-Anomalie", fontsize=7.5)
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=norm)
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=axes, orientation="vertical", fraction=0.015, pad=0.01, aspect=40)
+    cbar.set_label("Jahr")
+    fig.suptitle(f"Monatliche {driver_label}sensitivität des Abflusses (Tages-Anomalien, deseasonalisiert)", fontsize=10, y=0.995)
+    fig.savefig(f"{OUT_DIR}/{outfile}", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 20 --
+def fig_monthly_temp_sensitivity(df):
+    _monthly_sensitivity_grid(df, ["Tmean_SPARTACUS_Vernagtkessel", "Tmean_SPARTACUS_Vent"],
+                               "Temperatur", "°C", "fig20_monthly_temp_sensitivity.png")
+
+
+# --------------------------------------------------------------- Figure 21 --
+def fig_monthly_precip_sensitivity(df):
+    _monthly_sensitivity_grid(df, ["RR_SPARTACUS_Vernagtkessel", "RR_SPARTACUS_Vent"],
+                               "Niederschlag", "mm", "fig21_monthly_precip_sensitivity.png")
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -884,3 +954,5 @@ if __name__ == "__main__":
     fig_discharge_temp_sensitivity(df)
     fig_spartacus_station_validation(df)
     fig_data_availability(df)
+    fig_monthly_temp_sensitivity(df)
+    fig_monthly_precip_sensitivity(df)
