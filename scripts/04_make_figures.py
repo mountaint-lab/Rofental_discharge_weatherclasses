@@ -1202,6 +1202,173 @@ def fig_high_flow_day_frequency_monthly(df):
     plt.close(fig)
 
 
+def _bmu_temp_order(df):
+    """Order the 9 SOM weather classes by their own mean temperature (cold
+    to warm) - used to assign every weather-class figure the same
+    blue-to-red colour per class, consistent with the rest of the session."""
+    order = df.groupby("bmu")["Tmean_SPARTACUS_Vent"].mean().sort_values().index.tolist()
+    cmap = plt.get_cmap("coolwarm", len(order))
+    return {c: cmap(i) for i, c in enumerate(order)}, order
+
+
+# --------------------------------------------------------------- Figure 28 --
+def fig_weather_class_frequency(df):
+    """Has the weather itself changed? Share of days per SOM weather class
+    (bmu), per 5-year period - classes coloured cold (blue) to warm (red) by
+    their own mean temperature, same convention as the rest of the session."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+
+    def period_label(y):
+        for a, b in PERIOD_BINS:
+            if a <= y <= b:
+                return f"{a}-{b}"
+        return None
+
+    d["periode"] = d["year"].apply(period_label)
+    class_colors, order = _bmu_temp_order(d)
+    period_labels = [f"{a}-{b}" for a, b in PERIOD_BINS]
+
+    freq = d.groupby(["periode", "bmu"]).size().unstack(fill_value=0)
+    freq = freq.reindex(index=period_labels, columns=order)
+    freq_pct = freq.div(freq.sum(axis=1), axis=0) * 100
+
+    fig, ax = plt.subplots(figsize=(9, 4.6), dpi=300)
+    bottom = np.zeros(len(period_labels))
+    for c in order:
+        ax.bar(period_labels, freq_pct[c].values, bottom=bottom, color=class_colors[c], width=0.65,
+               label=f"Klasse {c}")
+        bottom += freq_pct[c].values
+    ax.set_ylabel("Anteil der Tage [%]")
+    ax.set_xlabel("Periode")
+    ax.set_title("Häufigkeit der Wetterlagenklassen (bmu) je Periode\n(kalt→warm sortiert, blau→rot)", fontsize=10)
+    ax.tick_params(axis="x", labelrotation=45)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.22), ncol=9, frameon=False, fontsize=7)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig28_weather_class_frequency.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 29 --
+def fig_weather_class_mean_q(df):
+    """Reference chart for fig30/31: mean Q per weather class, per
+    catchment, classes ordered and coloured by their own mean temperature -
+    which classes actually drive high flow, and is that the same ranking
+    for both catchments?"""
+    d = df.copy()
+    class_colors, order = _bmu_temp_order(d)
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), dpi=300)
+    for ax, (col, title, lab) in zip(axes, panels):
+        meanq = d.groupby("bmu")[col].mean().reindex(order)
+        colors = [class_colors[c] for c in order]
+        ax.bar([str(c) for c in order], meanq.values, color=colors, width=0.65)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Wetterlagenklasse (bmu, kalt→warm)")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+    axes[0].set_ylabel(r"Mittleres $Q$ [m$^3$ s$^{-1}$]")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig29_weather_class_mean_q.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 30 --
+def fig_high_q_class_monthly_share(df):
+    """Are the weather classes most associated with high flow (top-3 by
+    mean Q, per catchment) becoming more common in a specific part of the
+    season? A first check (mean day-of-year of their occurrence) found no
+    trend - this looks month-by-month instead, comparing early vs. late
+    period, which turned out to show a real pattern the single mean-DOY
+    number hid: more common in the summer core, not "earlier"."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["month"] = d["time"].dt.month
+    months = [5, 6, 7, 8, 9]
+    halves = [(1974, 1998, "1974-1998"), (1999, 2023, "1999-2023")]
+    half_colors = {"1974-1998": "#4a3aa7", "1999-2023": "#c0392b"}
+
+    panels = [("Q_Vernagt", "Vernagtbach", "a"), ("Q_Niedertalbach", "Rofenache – Pegel Vent", "b")]
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), dpi=300)
+    for ax, (col, title, lab) in zip(axes, panels):
+        top3 = d.groupby("bmu")[col].mean().sort_values(ascending=False).head(3).index.tolist()
+        width = 0.35
+        x = np.arange(len(months))
+        for i, (y0, y1, hlabel) in enumerate(halves):
+            sub = d[(d["year"] >= y0) & (d["year"] <= y1)]
+            shares = [sub[sub["month"] == m]["bmu"].isin(top3).mean() * 100 for m in months]
+            ax.bar(x + (i - 0.5) * width, shares, width=width, color=half_colors[hlabel], label=hlabel)
+        ax.set_xticks(x)
+        ax.set_xticklabels([MONTH_ABBR_DE[m] for m in months])
+        ax.set_title(f"{title}\n(Top-3-Klassen: {top3})", fontsize=9.5)
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=8)
+        ax.set_ylabel("Anteil Tage in Top-3-Q-Klassen [%]")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig30_high_q_class_monthly_share.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 31 --
+def fig_frequency_vs_sensitivity_decomposition(df):
+    """The capstone question: has discharge changed because the weather
+    ITSELF changed (classes becoming more/less frequent), or because the
+    SAME weather class now produces more/less discharge than it used to
+    (climate-driven change in the catchment's response)? Exact symmetric
+    shift-share decomposition: for each class c,
+        contribution = f_bar_c * delta_q_c + q_bar_c * delta_f_c
+    where f_bar/q_bar are the early/late average frequency/mean-Q and
+    delta_f/delta_q their late-minus-early change - this splits the total
+    change into a frequency effect and a sensitivity effect that sum
+    exactly to the observed total change (no residual/interaction term)."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    halves = [(1974, 1998), (1999, 2023)]
+
+    panels = [("Q_Vernagt", "Vernagtbach", C_VERNAGT_PEAK), ("Q_Niedertalbach", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+    results = []
+    for col, name, color in panels:
+        freqs, means = [], []
+        for y0, y1 in halves:
+            sub = d[(d["year"] >= y0) & (d["year"] <= y1)].dropna(subset=[col])
+            freqs.append(sub["bmu"].value_counts(normalize=True))
+            means.append(sub.groupby("bmu")[col].mean())
+        classes = sorted(set(freqs[0].index) | set(freqs[1].index))
+        freq_effect = sens_effect = 0.0
+        for c in classes:
+            fe, fl = freqs[0].get(c, 0.0), freqs[1].get(c, 0.0)
+            qe, ql = means[0].get(c, np.nan), means[1].get(c, np.nan)
+            if np.isnan(qe):
+                qe = ql
+            if np.isnan(ql):
+                ql = qe
+            sens_effect += (fe + fl) / 2 * (ql - qe)
+            freq_effect += (qe + ql) / 2 * (fl - fe)
+        total = freq_effect + sens_effect
+        results.append((name, color, freq_effect, sens_effect, total))
+
+    fig, ax = plt.subplots(figsize=(7, 5), dpi=300)
+    x = np.arange(len(results))
+    width = 0.25
+    labels_de = ["Frequenz-Effekt\n(Wetterlagen selbst geändert)", "Sensitivitäts-Effekt\n(gleiche Wetterlage, anderer Q-Effekt)", "Gesamtänderung"]
+    bar_colors = ["#8e8e8e", "#2e6da4", "#1a1a1a"]
+    for j, (label, bc) in enumerate(zip(labels_de, bar_colors)):
+        vals = [r[2 + j] if j < 2 else r[4] for r in results]
+        bars = ax.bar(x + (j - 1) * width, vals, width=width, color=bc, label=label)
+        for b, v in zip(bars, vals):
+            ax.text(b.get_x() + b.get_width() / 2, v + (0.02 if v >= 0 else -0.02) * max(abs(min(vals + [0])), abs(max(vals + [0]))),
+                    f"{v:+.2f}", ha="center", va="bottom" if v >= 0 else "top", fontsize=7.5)
+    ax.axhline(0, color="0.3", linewidth=0.8)
+    ax.set_xticks(x)
+    ax.set_xticklabels([r[0] for r in results], fontsize=10)
+    ax.set_ylabel(r"Beitrag zur $\Delta Q$ [m$^3$ s$^{-1}$] (1999–2023 vs. 1974–1998)")
+    ax.set_title("Zerlegung: Wetterlagen-Häufigkeit vs. Sensitivität")
+    ax.legend(loc="lower left", frameon=False, fontsize=7.5)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig31_frequency_vs_sensitivity_decomposition.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1233,3 +1400,7 @@ if __name__ == "__main__":
     fig_annual_max_magnitude_trend(df)
     fig_high_flow_day_frequency(df)
     fig_high_flow_day_frequency_monthly(df)
+    fig_weather_class_frequency(df)
+    fig_weather_class_mean_q(df)
+    fig_high_q_class_monthly_share(df)
+    fig_frequency_vs_sensitivity_decomposition(df)
