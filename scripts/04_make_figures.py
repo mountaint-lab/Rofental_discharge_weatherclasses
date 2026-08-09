@@ -713,6 +713,53 @@ def fig_climate_trends(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 17 --
+def fig_discharge_temp_sensitivity(df):
+    """Discharge sensitivity to temperature: day-of-year-deseasonalized
+    anomalies of Q and T (9d-smoothed climatology subtracted, so this isolates
+    day-to-day weather-driven fluctuations from the seasonal cycle both
+    naturally share), regressed against each other, split into an early and
+    late half to check whether the sensitivity itself has changed."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    def doy_anomaly(dd, col, window=9):
+        clim = dd.groupby("doy")[col].mean()
+        clim_smooth = clim.rolling(window, center=True, min_periods=3).mean()
+        return dd[col] - dd["doy"].map(clim_smooth)
+
+    halves = [(1974, 1998, "1974-1998", "#4a3aa7"), (1999, 2023, "1999-2023", "#c0392b")]
+    panels = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", "a"),
+              ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", "b")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.6), dpi=300)
+    for ax, (qcol, tcol, title, lab) in zip(axes, panels):
+        sub = seas.dropna(subset=[qcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub = sub.dropna(subset=["Q_a", "T_a"])
+        for y0, y1, hlabel, c in halves:
+            s2 = sub[(sub["year"] >= y0) & (sub["year"] <= y1)]
+            ax.scatter(s2["T_a"], s2["Q_a"], s=5, alpha=0.15, color=c, linewidths=0)
+            slope, intercept, r, p, se = stats.linregress(s2["T_a"], s2["Q_a"])
+            xs = np.array([s2["T_a"].min(), s2["T_a"].max()])
+            ax.plot(xs, slope * xs + intercept, color=c, linewidth=2,
+                    label=f"{hlabel}: {slope:+.3f} m³/s/°C, r={r:+.2f}, p={p:.1e}")
+        ax.axhline(0, color="0.7", linewidth=0.6)
+        ax.axvline(0, color="0.7", linewidth=0.6)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Temperatur-Anomalie [°C] (Tageswert - Klimatologie)")
+        ax.text(0.02, 0.97, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=7.5)
+    axes[0].set_ylabel(r"Abfluss-Anomalie $Q$ [m$^3$ s$^{-1}$] (Tageswert - Klimatologie)")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig17_discharge_temp_sensitivity.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -732,3 +779,4 @@ if __name__ == "__main__":
     fig_monthly_magnitude_by_period(df)
     fig_monthly_circular_scatter(df)
     fig_climate_trends(df)
+    fig_discharge_temp_sensitivity(df)
