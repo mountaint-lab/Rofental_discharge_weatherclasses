@@ -670,6 +670,49 @@ def fig_monthly_circular_scatter(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 16 --
+def fig_climate_trends(df):
+    """Has it gotten warmer/wetter in summer? Seasonal (May-Sep) mean
+    temperature and total precipitation per year at the two SPARTACUS grid
+    points closest to each gauge (Vernagtkessel for Vernagtbach, Vent for
+    Rofenache) - SPARTACUS chosen over the PANGAEA/ACINN station series
+    because it's gap-free and methodologically consistent across the whole
+    1974-2023 period (no sensor swaps/relocations to correct for). Same
+    Mann-Kendall/Sen's-slope trend test as fig14."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])]
+
+    panels = [
+        ("Tmean_SPARTACUS_Vernagtkessel", "mean", "Temperatur Vernagtkessel", C_VERNAGT_PEAK,
+         r"Saisonmittel $T$ [°C]", "°C", "a"),
+        ("Tmean_SPARTACUS_Vent", "mean", "Temperatur Vent", C_NIEDER_PEAK,
+         r"Saisonmittel $T$ [°C]", "°C", "b"),
+        ("RR_SPARTACUS_Vernagtkessel", "sum", "Niederschlag Vernagtkessel", C_VERNAGT_PEAK,
+         r"Saisonsumme $RR$ [mm]", "mm", "c"),
+        ("RR_SPARTACUS_Vent", "sum", "Niederschlag Vent", C_NIEDER_PEAK,
+         r"Saisonsumme $RR$ [mm]", "mm", "d"),
+    ]
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8), dpi=300)
+    for ax, (col, agg, title, c, ylabel, unit, lab) in zip(axes.flat, panels):
+        yearly = seas.groupby("year")[col].agg(agg)
+        ax.scatter(yearly.index, yearly.values, s=14, alpha=0.6, color=c, linewidths=0)
+        result = mk.original_test(yearly.values)
+        xs = np.array([yearly.index.min(), yearly.index.max()])
+        ys = result.intercept + result.slope * (xs - yearly.index.min())
+        ax.plot(xs, ys, color=c, linewidth=1.8,
+                label=f"Sen's slope: {result.slope*10:+.2f} {unit}/Dek\nMann-Kendall p={result.p:.4f} ({result.trend})")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Jahr")
+        ax.set_ylabel(ylabel)
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=7.5)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig16_climate_trends.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -688,3 +731,4 @@ if __name__ == "__main__":
     fig_seasonal_magnitude_bars(df)
     fig_monthly_magnitude_by_period(df)
     fig_monthly_circular_scatter(df)
+    fig_climate_trends(df)
