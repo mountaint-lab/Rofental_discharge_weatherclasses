@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.dates as mdates
 from scipy import stats
 import pymannkendall as mk
 
@@ -801,6 +802,66 @@ def fig_spartacus_station_validation(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 19 --
+def fig_data_availability(df):
+    """Gantt-style data availability chart, one row per variable, coloured
+    bars where a valid (non-NaN) daily value exists. The master sheet only
+    contains May-Sep rows by design (Q is only meaningful/measured in the
+    melt season), so this necessarily shows a comb pattern of short yearly
+    segments rather than continuous bars - gaps WITHIN a segment are real
+    missing data, the regular winter gaps between segments are not (out of
+    scope for this sheet, not a data problem)."""
+    d = df[["time"]].copy()
+    full_range = pd.date_range(df["time"].min(), df["time"].max(), freq="D")
+
+    def segments(col):
+        s = df.set_index("time")[col].reindex(full_range)
+        valid = s.notna().values
+        segs = []
+        start = None
+        for i, v in enumerate(valid):
+            if v and start is None:
+                start = i
+            elif not v and start is not None:
+                segs.append((mdates.date2num(full_range[start]), mdates.date2num(full_range[i - 1]) - mdates.date2num(full_range[start]) + 1))
+                start = None
+        if start is not None:
+            segs.append((mdates.date2num(full_range[start]), mdates.date2num(full_range[-1]) - mdates.date2num(full_range[start]) + 1))
+        return segs
+
+    rows = [
+        ("Q_Vernagt", "Q Vernagtbach", C_VERNAGT_PEAK),
+        ("Tmean_Vernagt_Pangea", "Temperatur Vernagt (Station)", C_VERNAGT_PEAK),
+        ("RR_Vernagt_Pangea", "Niederschlag Vernagt (Station)", C_VERNAGT_PEAK),
+        ("Tmean_SPARTACUS_Vernagtkessel", "Temperatur Vernagtkessel (SPARTACUS)", C_VERNAGT_PEAK),
+        ("Q_Niedertalbach", "Q Rofenache (Pegel Vent)", C_NIEDER_PEAK),
+        ("W_Niedertalbach", "Pegelstand Rofenache", C_NIEDER_PEAK),
+        ("Tmean_Vent_Pangea", "Temperatur Vent (Station)", C_NIEDER_PEAK),
+        ("RR_Vent_Pangea", "Niederschlag Vent (Station)", C_NIEDER_PEAK),
+        ("TxTxTx_Vent_Pangea", "Tx Vent (Station)", C_NIEDER_PEAK),
+        ("TnTnTn_Vent_Pangea", "Tn Vent (Station)", C_NIEDER_PEAK),
+        ("Tmean_SPARTACUS_Vent", "Temperatur Vent (SPARTACUS)", C_NIEDER_PEAK),
+        ("bmu", "Wetterlagenklasse (bmu)", "#6b6b6b"),
+    ]
+
+    fig, ax = plt.subplots(figsize=(11, 5.5), dpi=300)
+    for i, (col, label, color) in enumerate(rows):
+        y = len(rows) - i
+        ax.broken_barh(segments(col), (y - 0.35, 0.7), facecolors=color)
+    ax.set_yticks([len(rows) - i for i in range(len(rows))])
+    ax.set_yticklabels([label for _, label, _ in rows], fontsize=8)
+    ax.set_ylim(0.3, len(rows) + 0.7)
+    ax.xaxis.set_major_locator(mdates.YearLocator(5))
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%Y"))
+    ax.set_xlabel("Jahr")
+    ax.spines["left"].set_visible(False)
+    ax.tick_params(axis="y", length=0)
+    ax.set_title("Datenverfügbarkeit im Master-Datensatz (Mai–Sep je Jahr)", fontsize=10)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig19_data_availability.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -822,3 +883,4 @@ if __name__ == "__main__":
     fig_climate_trends(df)
     fig_discharge_temp_sensitivity(df)
     fig_spartacus_station_validation(df)
+    fig_data_availability(df)
