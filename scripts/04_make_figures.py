@@ -932,6 +932,159 @@ def fig_monthly_precip_sensitivity(df):
                                "Niederschlag", "mm", "fig21_monthly_precip_sensitivity.png")
 
 
+# --------------------------------------------------------------- Figure 22 --
+def fig_lag_correlation(df):
+    """Does discharge respond to TODAY's temperature, or with a lag (melt/
+    routing travel time from glacier to gauge)? Cross-correlation of
+    T-anomaly at day t-lag against Q-anomaly at day t, lag=0-5 days."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    pairs = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", C_VERNAGT_PEAK),
+             ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+
+    fig, ax = plt.subplots(figsize=(6.5, 4.6), dpi=300)
+    for qcol, tcol, name, color in pairs:
+        sub = seas.dropna(subset=[qcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub = sub[["time", "Q_a", "T_a"]].dropna().sort_values("time").set_index("time")
+        full = sub.reindex(pd.date_range(sub.index.min(), sub.index.max(), freq="D"))
+        lags = range(0, 6)
+        rs = []
+        for lag in lags:
+            x = full["T_a"].shift(lag)
+            y = full["Q_a"]
+            valid = x.notna() & y.notna()
+            r, p = stats.pearsonr(x[valid], y[valid])
+            rs.append(r)
+        ax.plot(list(lags), rs, color=color, marker="o", markersize=5, linewidth=1.8, label=name)
+        best_lag = int(np.argmax(rs))
+        ax.scatter([best_lag], [rs[best_lag]], color=color, s=90, facecolors="none", linewidths=1.8, zorder=5)
+    ax.set_xlabel("Lag [Tage] (T-Anomalie an Tag t-lag vs. Q-Anomalie an Tag t)")
+    ax.set_ylabel("Korrelation r")
+    ax.set_title("Zeitverzögerung zwischen Temperatur und Abfluss")
+    ax.legend(loc="center right", frameon=False)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig22_lag_correlation.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 23 --
+def fig_elasticity_comparison(df):
+    """Relative (not absolute) temperature sensitivity: %Q-change per degC,
+    normalized by each catchment's own mean Q - a fairer comparison than the
+    raw m3/s/degC slope, since Rofenache carries far more water than
+    Vernagtbach to begin with."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    pairs = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", C_VERNAGT_PEAK),
+             ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+
+    names, elasticities, colors = [], [], []
+    for qcol, tcol, name, color in pairs:
+        sub = seas.dropna(subset=[qcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub = sub.dropna(subset=["Q_a", "T_a"])
+        slope, _, r, p, _ = stats.linregress(sub["T_a"], sub["Q_a"])
+        mean_q = sub[qcol].mean()
+        elasticities.append(slope / mean_q * 100)
+        names.append(f"{name}\n({slope:+.3f} m³/s/°C, r={r:.2f})")
+        colors.append(color)
+
+    fig, ax = plt.subplots(figsize=(5.5, 4.6), dpi=300)
+    ax.bar(names, elasticities, color=colors, width=0.55)
+    for i, v in enumerate(elasticities):
+        ax.text(i, v + 0.3, f"{v:.1f}%", ha="center", fontsize=10, fontweight="bold")
+    ax.set_ylabel("Elastizität [% Q-Änderung pro °C Temperatur-Anomalie]")
+    ax.set_title("Relative Temperatursensitivität des Abflusses")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig23_elasticity_comparison.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 24 --
+def fig_degree_day_approach(df):
+    """Positive-degree-day (melt only happens above 0degC) as predictor,
+    same-day vs. a 3-day cumulative sum (proxy for accumulated melt energy,
+    ties to fig22's routing-lag finding) - compared against the plain
+    T-anomaly approach from fig17/20."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    pairs = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", "a"),
+             ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", "b")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.6), dpi=300)
+    for ax, (qcol, tcol, title, lab) in zip(axes, pairs):
+        sub = seas.dropna(subset=[qcol, tcol]).sort_values("time").copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["PDD3"] = sub[tcol].clip(lower=0).rolling(3, min_periods=1).sum()
+        sub = sub.dropna(subset=["Q_a", "PDD3"])
+        ax.scatter(sub["PDD3"], sub["Q_a"], s=5, alpha=0.15, color="0.35", linewidths=0)
+        slope, intercept, r, p, se = stats.linregress(sub["PDD3"], sub["Q_a"])
+        xs = np.array([sub["PDD3"].min(), sub["PDD3"].max()])
+        ax.plot(xs, slope * xs + intercept, color="#c0392b", linewidth=2,
+                label=f"{slope:+.4f} m³/s pro Gradtag\nr={r:+.2f}, p={p:.1e}")
+        ax.axhline(0, color="0.75", linewidth=0.6)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Kumulierte positive Gradtage (3 Tage) [°C·d]")
+        ax.text(0.02, 0.97, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper left", frameon=False, fontsize=8)
+    axes[0].set_ylabel("Q-Anomalie [m³/s]")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig24_degree_day_approach.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 25 --
+def fig_rain_snow_precip_sensitivity(df):
+    """Precipitation sensitivity split by same-day temperature (T>2degC =
+    likely rain -> immediate runoff contribution, T<=2degC = likely snow ->
+    stored, no immediate contribution) - addresses fig21's skewed/weak
+    relationship by conditioning on precipitation phase."""
+    d = df.copy()
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    pairs = [("Q_Vernagt", "RR_SPARTACUS_Vernagtkessel", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", "a"),
+             ("Q_Niedertalbach", "RR_SPARTACUS_Vent", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", "b")]
+    splits = [("warm (T>2°C, eher Regen)", "#c0392b"), ("kalt (T≤2°C, eher Schnee)", "#2e6da4")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.6), dpi=300)
+    for ax, (qcol, rcol, tcol, title, lab) in zip(axes, pairs):
+        sub = seas.dropna(subset=[qcol, rcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub = sub.dropna(subset=["Q_a"])
+        for (label, color), mask in zip(splits, [sub[tcol] > 2, sub[tcol] <= 2]):
+            s2 = sub[mask]
+            ax.scatter(s2[rcol], s2["Q_a"], s=6, alpha=0.25, color=color, linewidths=0)
+            slope, intercept, r, p, se = stats.linregress(s2[rcol], s2["Q_a"])
+            xs = np.array([s2[rcol].min(), s2[rcol].max()])
+            ax.plot(xs, slope * xs + intercept, color=color, linewidth=2,
+                    label=f"{label}: n={len(s2)}\n{slope:+.4f} m³/s/mm, p={p:.1e}")
+        ax.axhline(0, color="0.75", linewidth=0.6)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel("Niederschlag [mm/d]")
+        ax.text(0.02, 0.97, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.legend(loc="upper right", frameon=False, fontsize=7.5)
+    axes[0].set_ylabel("Q-Anomalie [m³/s]")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig25_rain_snow_precip_sensitivity.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -956,3 +1109,7 @@ if __name__ == "__main__":
     fig_data_availability(df)
     fig_monthly_temp_sensitivity(df)
     fig_monthly_precip_sensitivity(df)
+    fig_lag_correlation(df)
+    fig_elasticity_comparison(df)
+    fig_degree_day_approach(df)
+    fig_rain_snow_precip_sensitivity(df)
