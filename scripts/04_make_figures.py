@@ -974,11 +974,15 @@ def fig_lag_correlation(df):
 
 
 # --------------------------------------------------------------- Figure 23 --
-def fig_elasticity_comparison(df):
+def fig_semi_elasticity_comparison(df):
     """Relative (not absolute) temperature sensitivity: %Q-change per degC,
     normalized by each catchment's own mean Q - a fairer comparison than the
     raw m3/s/degC slope, since Rofenache carries far more water than
-    Vernagtbach to begin with."""
+    Vernagtbach to begin with. Technically a semi-elasticity, not a true
+    elasticity: a true elasticity would be %Q-change per %T-change, but
+    "percent change" is meaningless for temperature in degC (no true zero -
+    the same two temperatures give a different "% change" in degF or
+    Kelvin), so this uses percent-per-absolute-degree instead."""
     d = df.copy()
     d["doy"] = d["time"].dt.dayofyear
     d["month"] = d["time"].dt.month
@@ -1003,10 +1007,10 @@ def fig_elasticity_comparison(df):
     ax.bar(names, elasticities, color=colors, width=0.55)
     for i, v in enumerate(elasticities):
         ax.text(i, v + 0.3, f"{v:.1f}%", ha="center", fontsize=10, fontweight="bold")
-    ax.set_ylabel("Elastizität [% Q-Änderung pro °C Temperatur-Anomalie]")
+    ax.set_ylabel("Semi-Elastizität [% Q-Änderung pro °C Temperatur-Anomalie]")
     ax.set_title("Relative Temperatursensitivität des Abflusses")
     fig.tight_layout()
-    fig.savefig(f"{OUT_DIR}/fig23_elasticity_comparison.png", dpi=300, bbox_inches="tight")
+    fig.savefig(f"{OUT_DIR}/fig23_semi_elasticity_comparison.png", dpi=300, bbox_inches="tight")
     plt.close(fig)
 
 
@@ -1110,6 +1114,6 @@ if __name__ == "__main__":
     fig_monthly_temp_sensitivity(df)
     fig_monthly_precip_sensitivity(df)
     fig_lag_correlation(df)
-    fig_elasticity_comparison(df)
+    fig_semi_elasticity_comparison(df)
     fig_degree_day_approach(df)
     fig_rain_snow_precip_sensitivity(df)
