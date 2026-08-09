@@ -760,6 +760,47 @@ def fig_discharge_temp_sensitivity(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 18 --
+def fig_spartacus_station_validation(df):
+    """How well does the SPARTACUS grid point match the actual station it
+    stands in for? fig16/fig17 use SPARTACUS (gap-free, methodologically
+    consistent) rather than the station series - this checks that choice.
+    Scatter + 1:1 line + bias/correlation, daily values, for both variables
+    at both locations, over whatever years the station series covers."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+
+    panels = [
+        ("Tmean_SPARTACUS_Vernagtkessel", "Tmean_Vernagt_Pangea", "Temperatur Vernagtkessel", "°C", "a"),
+        ("Tmean_SPARTACUS_Vent", "Tmean_Vent_Pangea", "Temperatur Vent", "°C", "b"),
+        ("RR_SPARTACUS_Vernagtkessel", "RR_Vernagt_Pangea", "Niederschlag Vernagtkessel", "mm/d", "c"),
+        ("RR_SPARTACUS_Vent", "RR_Vent_Pangea", "Niederschlag Vent", "mm/d", "d"),
+    ]
+    fig, axes = plt.subplots(2, 2, figsize=(9, 8.6), dpi=300)
+    for ax, (spartacus_col, station_col, title, unit, lab) in zip(axes.flat, panels):
+        sub = d.dropna(subset=[spartacus_col, station_col])
+        bias = (sub[spartacus_col] - sub[station_col]).mean()
+        r, p = stats.pearsonr(sub[spartacus_col], sub[station_col])
+        y0, y1 = sub["year"].min(), sub["year"].max()
+        ax.scatter(sub[station_col], sub[spartacus_col], s=4, alpha=0.12, color="0.3", linewidths=0)
+        lims = [min(sub[station_col].min(), sub[spartacus_col].min()),
+                max(sub[station_col].max(), sub[spartacus_col].max())]
+        ax.plot(lims, lims, color="#c0392b", linewidth=1.2, linestyle="--", label="1:1")
+        ax.set_xlim(lims)
+        ax.set_ylim(lims)
+        ax.set_aspect("equal")
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel(f"Station [{unit}]")
+        ax.set_ylabel(f"SPARTACUS [{unit}]")
+        ax.text(0.03, 0.97, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+        ax.text(0.97, 0.06,
+                f"n={len(sub)} ({y0}-{y1})\nBias (SPARTACUS-Station): {bias:+.2f} {unit}\nr={r:.3f}",
+                transform=ax.transAxes, fontsize=7.5, ha="right", va="bottom")
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig18_spartacus_station_validation.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -780,3 +821,4 @@ if __name__ == "__main__":
     fig_monthly_circular_scatter(df)
     fig_climate_trends(df)
     fig_discharge_temp_sensitivity(df)
+    fig_spartacus_station_validation(df)
