@@ -1369,6 +1369,58 @@ def fig_frequency_vs_sensitivity_decomposition(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 32 --
+def fig_hefex_class_spotlight(df):
+    """Spotlight on bmu=6 and bmu=7 - the two weather classes the HEFEX-III
+    field campaign (06.-10.08.2025) happened to fall in (04.-09.08.2025:
+    bmu=7; 10.08.2025 onward: bmu=6, confirmed against the full 1952-2025
+    SOM classification series). Same deseasonalized-anomaly regression as
+    fig17, restricted to just these two classes, early vs. late half -
+    independently reproduces the class-specific sensitivity increase found
+    with the adjusted/bootstrapped model (Abbildung 13/14): both classes
+    strengthen at Vernagtbach, and Rofenache's bmu=7 relationship flips from
+    non-significant to clearly positive, matching that analysis closely
+    (there: -0.16 -> +0.46 m3/s/degC; here: -0.13 -> +0.43 m3/s/degC)."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    halves = [(1974, 1998, "1974-1998", "#4a3aa7"), (1999, 2023, "1999-2023", "#c0392b")]
+    rows = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach"),
+            ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent")]
+    classes = [6, 7]
+
+    fig, axes = plt.subplots(2, 2, figsize=(10, 8.4), dpi=300)
+    for row_i, (qcol, tcol, rowtitle) in enumerate(rows):
+        sub = seas.dropna(subset=[qcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub = sub.dropna(subset=["Q_a", "T_a"])
+        for col_i, cls in enumerate(classes):
+            ax = axes[row_i, col_i]
+            csub = sub[sub["bmu"] == cls]
+            for y0, y1, hlabel, c in halves:
+                s2 = csub[(csub["year"] >= y0) & (csub["year"] <= y1)]
+                ax.scatter(s2["T_a"], s2["Q_a"], s=10, alpha=0.4, color=c, linewidths=0)
+                slope, intercept, r, p, se = stats.linregress(s2["T_a"], s2["Q_a"])
+                xs = np.array([s2["T_a"].min(), s2["T_a"].max()])
+                ax.plot(xs, slope * xs + intercept, color=c, linewidth=2,
+                        label=f"{hlabel}: {slope:+.3f} m³/s/°C, r={r:+.2f}, p={p:.3f}")
+            ax.axhline(0, color="0.75", linewidth=0.6)
+            ax.axvline(0, color="0.75", linewidth=0.6)
+            ax.set_title(f"{rowtitle} — bmu={cls}", fontsize=10)
+            ax.set_xlabel("Temperatur-Anomalie [°C]")
+            ax.set_ylabel("Q-Anomalie [m³/s]")
+            ax.legend(loc="upper left", frameon=False, fontsize=7.5)
+    fig.suptitle("HEFEX-III-Kampagne (06.-10.08.2025) lief unter bmu=7 (04.-09.08.) und bmu=6 (ab 10.08.)",
+                 fontsize=9.5, y=1.0)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig32_hefex_class_spotlight.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1404,3 +1456,4 @@ if __name__ == "__main__":
     fig_weather_class_mean_q(df)
     fig_high_q_class_monthly_share(df)
     fig_frequency_vs_sensitivity_decomposition(df)
+    fig_hefex_class_spotlight(df)
