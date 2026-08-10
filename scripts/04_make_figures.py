@@ -12,6 +12,7 @@ import matplotlib.colors as mcolors
 import matplotlib.dates as mdates
 from scipy import stats
 import pymannkendall as mk
+import statsmodels.formula.api as smf
 
 MASTER_XLSX = "./data/processed/ssim_q_weather_time_vs10.xlsx"  # <-- adjust
 MASTER_SHEET = "clean_complete_cases"
@@ -1421,6 +1422,105 @@ def fig_hefex_class_spotlight(df):
     plt.close(fig)
 
 
+# --------------------------------------------------------------- Figure 33 --
+def fig_rolling_sensitivity(df):
+    """Better than fig17's fixed early/late split: a 15-year rolling window
+    T-sensitivity slope (same deseasonalized-anomaly regression, just
+    re-fit at every window centre) - shows HOW the sensitivity evolved
+    instead of just a before/after snapshot, and whether the change was
+    gradual or abrupt."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy()
+
+    pairs = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "Vernagtbach", C_VERNAGT_PEAK, "a"),
+             ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "Rofenache – Pegel Vent", C_NIEDER_PEAK, "b")]
+
+    fig, axes = plt.subplots(1, 2, figsize=(10, 4.4), dpi=300, sharex=True)
+    half_window = 7
+    for ax, (qcol, tcol, title, color, lab) in zip(axes, pairs):
+        sub = seas.dropna(subset=[qcol, tcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub = sub.dropna(subset=["Q_a", "T_a"])
+        years = range(sub["year"].min() + half_window, sub["year"].max() - half_window + 1)
+        centers, slopes, ses = [], [], []
+        for yc in years:
+            w = sub[(sub["year"] >= yc - half_window) & (sub["year"] <= yc + half_window)]
+            slope, intercept, r, p, se = stats.linregress(w["T_a"], w["Q_a"])
+            centers.append(yc)
+            slopes.append(slope)
+            ses.append(se)
+        centers, slopes, ses = np.array(centers), np.array(slopes), np.array(ses)
+        ax.fill_between(centers, slopes - ses, slopes + ses, color=color, alpha=0.25, linewidth=0)
+        ax.plot(centers, slopes, color=color, linewidth=1.8)
+        ax.axhline(0, color="0.7", linewidth=0.6)
+        ax.set_title(title, fontsize=10)
+        ax.set_xlabel(f"Fenstermitte (±{half_window} Jahre)")
+        ax.text(0.02, 0.96, lab, transform=ax.transAxes, fontsize=11, fontweight="bold", va="top")
+    axes[0].set_ylabel("T-Sensitivität [m³/s pro °C]\n(15-Jahres-Fenster, ±1 SE)")
+    fig.suptitle("Rollierende Temperatursensitivität des Abflusses", fontsize=10.5)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig33_rolling_sensitivity.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
+# --------------------------------------------------------------- Figure 34 --
+def fig_adjusted_sensitivity(df):
+    """Better than fig17's bivariate regression: T-sensitivity adjusted for
+    month, 3-day precipitation, previous-day discharge (autocorrelation/
+    routing) and a linear within-period time trend - same idea as the field
+    team's Abbildung 13/14 model, our own implementation."""
+    d = df.copy()
+    d["year"] = d["time"].dt.year
+    d["doy"] = d["time"].dt.dayofyear
+    d["month"] = d["time"].dt.month
+    seas = d[d["month"].isin([5, 6, 7, 8, 9])].copy().sort_values("time")
+
+    pairs = [("Q_Vernagt", "Tmean_SPARTACUS_Vernagtkessel", "RR_SPARTACUS_Vernagtkessel", "Vernagtbach", C_VERNAGT_PEAK),
+             ("Q_Niedertalbach", "Tmean_SPARTACUS_Vent", "RR_SPARTACUS_Vent", "Rofenache – Pegel Vent", C_NIEDER_PEAK)]
+    halves = [(1974, 1998, "1974-1998"), (1999, 2023, "1999-2023")]
+
+    names, coefs, errs, colors_bar, hatch = [], [], [], [], []
+    for qcol, tcol, rcol, name, color in pairs:
+        sub = seas.dropna(subset=[qcol, tcol, rcol]).copy()
+        sub["Q_a"] = doy_anomaly(sub, qcol)
+        sub["T_a"] = doy_anomaly(sub, tcol)
+        sub["precip3"] = sub[rcol].rolling(3, min_periods=1).sum()
+        sub["Q_lag1"] = sub[qcol].shift(1)
+        sub = sub.dropna(subset=["Q_a", "T_a", "precip3", "Q_lag1"])
+        for y0, y1, hlabel in halves:
+            s2 = sub[(sub["year"] >= y0) & (sub["year"] <= y1)].copy()
+            s2["t_idx"] = (s2["time"] - s2["time"].min()).dt.days
+            s2["month"] = s2["month"].astype("category")
+            model = smf.ols("Q_a ~ T_a + precip3 + Q_lag1 + t_idx + C(month)", data=s2).fit()
+            names.append(f"{name}\n{hlabel}")
+            coefs.append(model.params["T_a"])
+            errs.append(1.96 * model.bse["T_a"])
+            colors_bar.append(color)
+            hatch.append("" if hlabel == "1974-1998" else "//")
+
+    fig, ax = plt.subplots(figsize=(8, 5), dpi=300)
+    x = np.arange(len(names))
+    bars = ax.bar(x, coefs, yerr=errs, capsize=3, color=colors_bar, width=0.6,
+                   edgecolor="white", linewidth=0.5)
+    for b, h in zip(bars, hatch):
+        b.set_hatch(h)
+    ax.axhline(0, color="0.3", linewidth=0.8)
+    ax.set_xticks(x)
+    ax.set_xticklabels(names, fontsize=8)
+    ax.set_ylabel("Adjustierte T-Sensitivität [m³/s/°C]\n(±95%-CI)")
+    ax.set_title("T-Sensitivität, adjustiert für Monat, 3-Tages-Niederschlag,\nVortagesabfluss und Zeittrend")
+    from matplotlib.patches import Patch
+    legend_elems = [Patch(facecolor="0.6", label="1974-1998"), Patch(facecolor="0.6", hatch="//", label="1999-2023")]
+    ax.legend(handles=legend_elems, loc="upper left", frameon=False, fontsize=8)
+    fig.tight_layout()
+    fig.savefig(f"{OUT_DIR}/fig34_adjusted_sensitivity.png", dpi=300, bbox_inches="tight")
+    plt.close(fig)
+
+
 if __name__ == "__main__":
     import os
     os.makedirs(OUT_DIR, exist_ok=True)
@@ -1457,3 +1557,5 @@ if __name__ == "__main__":
     fig_high_q_class_monthly_share(df)
     fig_frequency_vs_sensitivity_decomposition(df)
     fig_hefex_class_spotlight(df)
+    fig_rolling_sensitivity(df)
+    fig_adjusted_sensitivity(df)
