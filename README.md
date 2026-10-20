@@ -1,6 +1,6 @@
 # Codeauswahl zur Bachelorarbeit: Abfluss und Wetterlagen im Rofental
 
-Dieses Paket enthält eine Auswahl von Auswertungsskripten zur Bachelorarbeit über die klimatologische und synoptische Steuerung des sommerlichen Abflusses im Rofental. Es ist ein **Codeauszug**, keine vollständige oder unabhängig ausführbare Reproduktionspipeline. Die Originaldateien wurden nicht verändert; für diese Kopie wurden zwei lokale Dateipfade durch relative Pfade ersetzt.
+Dieses Paket enthält eine Auswahl von Auswertungsskripten zur Bachelorarbeit über die klimatologische und synoptische Steuerung des sommerlichen Abflusses im Rofental. Es ist keine vollständige oder unabhängig ausführbare Reproduktionspipeline, beinhaltet jedoch die wichtigsten Auswertungen für die Bachelorarbeit.
 
 ## Fünf ausgewählte Skripte
 
