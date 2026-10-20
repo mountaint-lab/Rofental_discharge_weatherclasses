@@ -42,4 +42,4 @@ Das Beispiel setzt die oben genannten Datendateien und Klassenzuordnungen voraus
 
 ## Herkunft und Weitergabe
 
-Dies ist eine vorläufige Auswahl aus dem Arbeitsverzeichnis. Rechte an gemeinsam entwickeltem Code und an verwendeten Daten sind vor einer öffentlichen Veröffentlichung zu prüfen. Eine Lizenz für den Code wurde noch nicht festgelegt.
+Dies ist eine vorläufige Auswahl aus dem Arbeitsverzeichnis. Rechte an gemeinsam entwickeltem Code und an verwendeten Daten sind vor einer öffentlichen Veröffentlichung bei moritz.thomaser@edu.uni-graz.at anzufragen.
