@@ -20,15 +20,7 @@ import pandas as pd
 SCRIPT_DIR = Path(__file__).resolve().parent
 PROJECT_ROOT = SCRIPT_DIR.parents[1]
 DATA_FILE = PROJECT_ROOT / "data" / "all_final" / "ssim_q_weather_time_vs13.xlsx"
-DEFAULT_CLASS_FILE = (
-    PROJECT_ROOT
-    / "classification"
-    / "wsom_hefex-main"
-    / "results"
-    / "3x3_som_results_seasonal_filtered_24000updates"
-    / "clusters_series"
-    / "w_0.0_n_3x3_m_ed_i_pca_clusters_time.csv"
-)
+DEFAULT_CLASS_FILE = PROJECT_ROOT / "data" / "weather_types" / "primary_som_assignments.csv"
 CLASS_FILE = Path(os.environ.get("SOM_CLASS_FILE", str(DEFAULT_CLASS_FILE)))
 DEFAULT_OUT_DIR = PROJECT_ROOT / "outputs" / "weather_type_response"
 OUT_DIR = Path(os.environ.get("SOM_OUT_DIR", str(DEFAULT_OUT_DIR)))
