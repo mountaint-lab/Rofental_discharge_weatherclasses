@@ -1,9 +1,4 @@
-"""Scientific climate-trend figures from the complete SPARTACUS time series.
-
-Outputs are written as new files in ``figures/variants``. Existing figures
-are never overwritten. Daily SPARTACUS files are used directly so seasonal
-precipitation sums are not biased by gaps in the discharge-joined master file.
-"""
+"""Create seasonal temperature and precipitation trend figures from SPARTACUS."""
 
 from __future__ import annotations
 
@@ -18,11 +13,11 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 CLIMATE_DIR = PROJECT_ROOT / "data" / "climat"
 TEMPERATURE_FILE = CLIMATE_DIR / "SPARTACUS_TM24_Datensatz_19610801_20260806.csv"
 PRECIPITATION_FILE = CLIMATE_DIR / "SPARTACUS_RR_Datensatz_19610801_20260806.csv"
-OUT_DIR = SCRIPT_DIR / "figures" / "variants"
+OUT_DIR = PROJECT_ROOT / "outputs" / "climate_trends"
 
 START_YEAR, END_YEAR = 1974, 2023
 MONTHS = (5, 6, 7, 8, 9)

@@ -8,11 +8,11 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 AUDIT_DIR = PROJECT_ROOT / "data" / "classification_audit"
 SOURCE = AUDIT_DIR / "omega2_method_audit_summary.csv"
 ALL_METHODS_SOURCE = AUDIT_DIR / "omega2_all_methods_lags.csv"
-OUT_DIR = SCRIPT_DIR / "figures" / "final_vs13" / "04_statistik"
+OUT_DIR = PROJECT_ROOT / "outputs" / "classification_comparison"
 
 METHODS = [
     ("SOM p=0 (24k; primär)", "Referenzklassifikation"),

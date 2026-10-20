@@ -1,4 +1,4 @@
-"""Final weather-response figures using corrected discharge data and neutral SOM p=0.
+"""Weather-response figures based on the unweighted primary SOM (p = 0).
 
 The corrected master workbook still contains the historical ablation-weighted
 BMU assignment in its ``bmu`` column.  This script deliberately replaces that
@@ -18,7 +18,7 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 DATA_FILE = PROJECT_ROOT / "data" / "all_final" / "ssim_q_weather_time_vs13.xlsx"
 DEFAULT_CLASS_FILE = (
     PROJECT_ROOT
@@ -30,7 +30,7 @@ DEFAULT_CLASS_FILE = (
     / "w_0.0_n_3x3_m_ed_i_pca_clusters_time.csv"
 )
 CLASS_FILE = Path(os.environ.get("SOM_CLASS_FILE", str(DEFAULT_CLASS_FILE)))
-DEFAULT_OUT_DIR = SCRIPT_DIR / "figures" / "corrected_vs13" / "primary_som_p0"
+DEFAULT_OUT_DIR = PROJECT_ROOT / "outputs" / "weather_type_response"
 OUT_DIR = Path(os.environ.get("SOM_OUT_DIR", str(DEFAULT_OUT_DIR)))
 
 FIG_SCATTER_SAME_DAY = OUT_DIR / "fig25a_temperature_discharge_same_day_p0"
@@ -44,7 +44,7 @@ RESULTS_FILE = OUT_DIR / "primary_som_p0_weather_response_statistics.csv"
 
 
 def load_analysis_module():
-    path = SCRIPT_DIR / "10_weather_response_time_change.py"
+    path = SCRIPT_DIR / "_weather_response_diagnostics.py"
     spec = importlib.util.spec_from_file_location("weather_response_time_change", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load {path}")

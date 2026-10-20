@@ -18,9 +18,9 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 INPUT = PROJECT_ROOT / "data" / "hefex_iop1" / "HEFEX_Kampagne_Aug2025.xlsx"
-OUT_DIR = SCRIPT_DIR / "figures" / "final_vs13" / "04_feldstudie_2025"
+OUT_DIR = PROJECT_ROOT / "outputs" / "hefex_case_study"
 OUTPUT = OUT_DIR / "hefex_2025_wetter_energie_wasserstand_stuendlich"
 
 START = pd.Timestamp("2025-08-04 00:00")

@@ -1,45 +1,29 @@
-# Codeauswahl zur Bachelorarbeit: Abfluss und Wetterlagen im Rofental
+# Rofental runoff analysis
 
-Dieses Paket enthält eine Auswahl von Auswertungsskripten zur Bachelorarbeit über die klimatologische und synoptische Steuerung des sommerlichen Abflusses im Rofental. Es ist ein **Codeauszug**, keine vollständige oder unabhängig ausführbare Reproduktionspipeline. Die Originaldateien wurden nicht verändert; für diese Kopie wurden zwei lokale Dateipfade durch relative Pfade ersetzt.
+Selected analysis scripts for the bachelor thesis *Synoptic control of summer runoff in the Rofental*. The code covers climate and runoff trends, weather-type-dependent runoff responses, the HEFEX-III case study, and the comparison of weather-type classifications.
 
-## Fünf ausgewählte Skripte
+## Scripts
 
-Die Dateien liegen unter `scripts/VS_Code/Rofental_discharge_weatherclasses/scripts/`:
+The main scripts are in [`analysis/`](analysis/):
 
-1. `05_results_trend_variants.py`: Abflussentwicklung, Trends und saisonale Darstellungen.
-2. `06_climate_trend_figures.py`: Temperatur- und Niederschlagsentwicklung auf Basis von SPARTACUS-Daten.
-3. `23_plot_paired_temperature_contrast.py`: klassenweise Temperatur-Abfluss-Beziehungen und deren Veränderung zwischen den Vergleichsperioden.
-4. `53_plot_hefex_campaign_hourly_waterlevel.py`: stündliche Darstellung meteorologischer Größen und normierter Wasserstandssignale der HEFEX-III-Kampagne.
-5. `57_write_omega2_method_appendix_table.py`: Zusammenstellung bereits berechneter ω²-Ergebnisse für den Klassifikationsvergleich; das Skript berechnet die zugrunde liegende Analyse nicht selbst.
+- `runoff_trends.py` – seasonal runoff characteristics and long-term trends;
+- `climate_trends.py` – temperature and precipitation trends from SPARTACUS;
+- `weather_type_response.py` – temperature response of runoff within weather types;
+- `hefex_case_study.py` – meteorological and water-level observations from HEFEX-III;
+- `classification_comparison.py` – summary table for the classification comparison.
 
-Die Dateien `09_weather_adjusted_sensitivity.py`, `10_weather_response_time_change.py` und `12_primary_som_p0_response_vs13.py` sind Hilfsskripte, die für die Temperaturauswertung benötigt werden. Einzelne Auswertungen und Abbildungen der Arbeit, insbesondere SOM-Training, Erstellung der Klassifikationen und des gemeinsamen Datensatzes, sind in dieser Auswahl **nicht** vollständig enthalten.
+Files starting with an underscore are helper modules used by `weather_type_response.py`.
 
-## Daten und Einschränkungen
+## Data and execution
 
-Messdaten, auf Anfrage erhaltene Daten, der zusammengeführte Datensatz, Klassifikationsdateien und vorab berechnete Ergebnisse sind nicht Bestandteil dieses Pakets. Ihre Weitergabe und Nutzung unterliegen den Bedingungen der jeweiligen Datengeber. Eine vollständige Reproduktion der Ergebnisse ist allein mit diesem Paket nicht möglich.
-
-Die Skripte erwarten – sofern die entsprechenden Daten vorliegen und verwendet werden dürfen – unter anderem folgende Pfade relativ zu diesem Ordner:
-
-- `data/all_final/ssim_q_weather_time_vs13.xlsx`: gemeinsamer Datensatz; die verwendeten Tabellenblätter sind in den Skripten angegeben.
-- `data/climat/`: SPARTACUS-Temperatur- und Niederschlagsdateien mit den in Skript 06 genannten Namen.
-- `classification/wsom_hefex-main/results/3x3_som_results_seasonal_filtered_24000updates/clusters_series/w_0.0_n_3x3_m_ed_i_pca_clusters_time.csv`: Zuordnung der Referenz-SOM; Skript 12 unterstützt alternativ die Umgebungsvariable `SOM_CLASS_FILE`.
-- `data/hefex_iop1/HEFEX_Kampagne_Aug2025.xlsx`: Eingangsdaten der HEFEX-Darstellung.
-- `data/classification_audit/omega2_method_audit_summary.csv` und `omega2_all_methods_lags.csv`: zuvor berechnete Eingangstabellen für Skript 57.
-
-Bei Bedarf müssen Dateipfade, Tabellenblätter und Eingabespalten an die verfügbaren Daten angepasst werden. Die Ausgabe erfolgt in Unterordnern von `scripts/VS_Code/Rofental_discharge_weatherclasses/scripts/figures/`. Die Skripte können dort Dateien mit festen Namen überschreiben; bei erneuter Ausführung Ausgaben vorher sichern.
-
-## Umgebung
-
-Für die ausgewählten Skripte werden Python 3 und die Pakete in `requirements.txt` benötigt. Beispiel:
+The repository does not contain measurement data, ERA5 fields, intermediate classification results, or figures. The expected input paths are listed in [`analysis/README.md`](analysis/README.md). With the original data available, install the packages in `requirements.txt` and run a script from the repository root, for example:
 
 ```bash
-python -m venv .venv
-python -m pip install -r requirements.txt
-python scripts/VS_Code/Rofental_discharge_weatherclasses/scripts/23_plot_paired_temperature_contrast.py
+python analysis/weather_type_response.py
 ```
 
-Das Beispiel setzt die oben genannten Datendateien und Klassenzuordnungen voraus. Die Paketversionen sind nicht fixiert; die genaue Originalumgebung wurde nicht vollständig rekonstruiert. Ohne die Originaldaten wurden die Auswertungen nicht erneut end-to-end ausgeführt.
+Results are written to `outputs/`, which is intentionally ignored by Git.
 
-## Herkunft und Weitergabe
+## Weather-type classification
 
-Dies ist eine vorläufige Auswahl aus dem Arbeitsverzeichnis. Rechte an gemeinsam entwickeltem Code und an verwendeten Daten sind vor einer öffentlichen Veröffentlichung zu prüfen. Eine Lizenz für den Code wurde noch nicht festgelegt.
+The scripts analyse the primary unweighted 3×3 SOM classification. The full ERA5 preprocessing and SOM-training workflow is not included here because it relies on the separately developed `wsom_pad` package and the ERA5 input data. It can be added once authorship and reuse have been clarified.

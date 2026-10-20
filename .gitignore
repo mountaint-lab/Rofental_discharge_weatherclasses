@@ -3,7 +3,7 @@ __pycache__/
 *.py[cod]
 data/
 classification/
-scripts/VS_Code/Rofental_discharge_weatherclasses/scripts/figures/
+outputs/
 *.xlsx
 *.nc
 *.pkl

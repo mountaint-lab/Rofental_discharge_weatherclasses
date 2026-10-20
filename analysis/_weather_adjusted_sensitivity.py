@@ -25,10 +25,10 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 DATA_FILE = PROJECT_ROOT / "data" / "all_final" / "ssim_q_weather_time_vs13.xlsx"
 DATA_SHEET = "clean_complete_cases"
-OUT_DIR = SCRIPT_DIR / "figures" / "corrected_vs13" / "variants"
+OUT_DIR = PROJECT_ROOT / "outputs" / "weather_type_response" / "diagnostics"
 
 FIG_MONTHLY_PNG = OUT_DIR / "fig17a_weather_adjusted_monthly_sensitivity_copy.png"
 FIG_MONTHLY_PDF = OUT_DIR / "fig17a_weather_adjusted_monthly_sensitivity_copy.pdf"

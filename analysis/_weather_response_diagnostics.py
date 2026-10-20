@@ -1,7 +1,7 @@
-"""Descriptive and adjusted weather-response diagnostics based on corrected dataset vs13.
+"""Descriptive and adjusted weather-response diagnostics.
 
 The script complements, rather than replaces, the adjusted sensitivity figures
-from 09_weather_adjusted_sensitivity.py. It creates four new figure copies:
+from _weather_adjusted_sensitivity.py. It creates diagnostic figures for:
 
 1. the intuitive temperature-discharge scatter plot requested for orientation,
 2. the monthly lag structure of the adjusted temperature response,
@@ -25,9 +25,9 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 DATA_FILE = PROJECT_ROOT / "data" / "all_final" / "ssim_q_weather_time_vs13.xlsx"
-OUT_DIR = SCRIPT_DIR / "figures" / "corrected_vs13" / "variants"
+OUT_DIR = PROJECT_ROOT / "outputs" / "weather_type_response" / "diagnostics"
 
 FIG_SCATTER = OUT_DIR / "fig18a_temperature_discharge_scatter_copy"
 FIG_SCATTER_COMPARISON = OUT_DIR / "fig18a2_temperature_discharge_same_vs_previous_day_copy"
@@ -64,7 +64,7 @@ BLACK = "#262626"
 
 
 def load_adjusted_module():
-    path = SCRIPT_DIR / "09_weather_adjusted_sensitivity.py"
+    path = SCRIPT_DIR / "_weather_adjusted_sensitivity.py"
     spec = importlib.util.spec_from_file_location("weather_adjusted_sensitivity", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Could not load {path}")

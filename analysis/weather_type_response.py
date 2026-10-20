@@ -1,4 +1,4 @@
-"""Physical-unit companion to the standardised temperature-response analysis.
+"""Estimate and plot the weather-type-specific temperature response of runoff.
 
 The main inference compares catchments with standardised coefficients. This
 companion retains the class-wise, frequency-weighted construction but estimates
@@ -18,8 +18,9 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PRIMARY_SCRIPT = SCRIPT_DIR / "12_primary_som_p0_response_vs13.py"
-DEFAULT_OUT_DIR = SCRIPT_DIR / "figures" / "final_vs13" / "03_wetterklassenvergleich"
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
+PRIMARY_SCRIPT = SCRIPT_DIR / "_primary_som_response.py"
+DEFAULT_OUT_DIR = PROJECT_ROOT / "outputs" / "weather_type_response"
 OUT_DIR = Path(os.environ.get("PHYSICAL_RESPONSE_OUT_DIR", str(DEFAULT_OUT_DIR)))
 OUTPUT_STEM = OUT_DIR / "abb20_veraenderung_bedingte_temperaturreaktion"
 PERIODS = {"1974–1988": (1974, 1988), "2009–2023": (2009, 2023)}

@@ -1,9 +1,4 @@
-"""Alternative result figures for the seasonal discharge analysis.
-
-The script deliberately writes only to ``figures/variants`` and therefore
-does not overwrite any existing figure.  It uses the established blue-to-red
-time colours (early to recent) rather than the study-area site palette.
-"""
+"""Create figures and summary statistics for seasonal runoff trends."""
 
 from __future__ import annotations
 
@@ -18,10 +13,10 @@ import pandas as pd
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-PROJECT_ROOT = SCRIPT_DIR.parents[3]
+PROJECT_ROOT = SCRIPT_DIR.parents[1]
 DATA_FILE = PROJECT_ROOT / "data" / "all_final" / "ssim_q_weather_time_vs13.xlsx"
 DATA_SHEET = "clean_complete_cases"
-OUT_DIR = SCRIPT_DIR / "figures" / "corrected_vs13" / "variants"
+OUT_DIR = PROJECT_ROOT / "outputs" / "runoff_trends"
 
 SEASON_MONTHS = (5, 6, 7, 8, 9)
 SEASON_LENGTH = 153  # 1 May through 30 September
