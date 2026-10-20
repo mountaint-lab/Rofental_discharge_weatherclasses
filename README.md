@@ -27,3 +27,5 @@ Results are written to `outputs/`, which is intentionally ignored by Git.
 ## Weather-type classification
 
 The scripts analyse the primary unweighted 3×3 SOM classification. The full ERA5 preprocessing and SOM-training workflow is not included here because it relies on the separately developed `wsom_pad` package and the ERA5 input data. It can be added once authorship and reuse have been clarified.
+
+Questions about reuse of the code or underlying data can be directed to moritz.thomaser@edu.uni-graz.at.
